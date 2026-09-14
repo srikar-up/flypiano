@@ -14,6 +14,10 @@ Hardware Target: NVIDIA RTX 4060 (8GB VRAM) / CUDA with parallel fly physics.
 
 import os
 import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
 import time
 import json
 import argparse
@@ -157,7 +161,8 @@ class AdvancedChromaticLogicModule:
         try:
             import mido
             print(f"🎼 Multi-Track Tick-Based Sequencer loading: {filepath}...")
-            mid = mido.MidiFile(filepath)
+            # clip=True ensures out-of-range data bytes don't cause ValueError
+            mid = mido.MidiFile(filepath, clip=True)
             merged = mido.merge_tracks(mid.tracks)
 
             ticks_per_beat = mid.ticks_per_beat or 480
@@ -170,7 +175,7 @@ class AdvancedChromaticLogicModule:
             # Tempo map for exact continuous tick-to-seconds conversion: [(tick, time_sec, tempo_us)]
             tempo_map = [(0, 0.0, current_tempo)]
 
-            active_notes = {}
+            active_notes = {}  # (channel, note) -> (start_tick, start_time_sec, vel)
             note_events = []
 
             for msg in merged:
@@ -183,11 +188,29 @@ class AdvancedChromaticLogicModule:
                     current_tempo = msg.tempo
                     tempo_map.append((current_tick, current_time_sec, current_tempo))
 
+                ch = getattr(msg, 'channel', 0)
+                # Filter out percussion channel 9 (GM Channel 10)
+                if ch == 9:
+                    continue
+
                 if msg.type == 'note_on' and msg.velocity > 0:
-                    active_notes[msg.note] = (current_tick, current_time_sec, msg.velocity)
+                    key = (ch, msg.note)
+                    if key in active_notes:
+                        prev_t, prev_s, prev_v = active_notes.pop(key)
+                        note_events.append({
+                            "note": msg.note,
+                            "start_tick": prev_t,
+                            "end_tick": current_tick,
+                            "start_time_sec": prev_s,
+                            "end_time_sec": current_time_sec,
+                            "dur_sec": max(0.02, current_time_sec - prev_s),
+                            "vel": prev_v
+                        })
+                    active_notes[key] = (current_tick, current_time_sec, msg.velocity)
                 elif msg.type in ('note_off', 'note_on') and getattr(msg, 'velocity', 0) == 0:
-                    if msg.note in active_notes:
-                        start_t, start_s, vel = active_notes.pop(msg.note)
+                    key = (ch, msg.note)
+                    if key in active_notes:
+                        start_t, start_s, vel = active_notes.pop(key)
                         note_events.append({
                             "note": msg.note,
                             "start_tick": start_t,
@@ -198,7 +221,20 @@ class AdvancedChromaticLogicModule:
                             "vel": vel
                         })
 
+            # Flush any unclosed notes at end of track
+            for (ch, note_num), (start_t, start_s, vel) in active_notes.items():
+                note_events.append({
+                    "note": note_num,
+                    "start_tick": start_t,
+                    "end_tick": max(start_t + micro_tick_resolution, current_tick),
+                    "start_time_sec": start_s,
+                    "end_time_sec": max(start_s + 0.1, current_time_sec),
+                    "dur_sec": max(0.05, current_time_sec - start_s),
+                    "vel": vel
+                })
+
             if not note_events:
+                print(f"⚠️ No note events could be extracted from '{filepath}'")
                 return None
 
             def tick_to_sec(target_tick: int) -> float:
@@ -214,7 +250,7 @@ class AdvancedChromaticLogicModule:
 
             note_events.sort(key=lambda x: x["start_tick"])
             total_time_ticks = max(ev["end_tick"] for ev in note_events)
-            num_micro_ticks = min(300, (total_time_ticks // micro_tick_resolution) + 1)
+            num_micro_ticks = min(5000, (total_time_ticks // micro_tick_resolution) + 1)
 
             ticks = []
             for t in range(num_micro_ticks):
@@ -373,6 +409,10 @@ class ConnectomeMultiHeadAdapter(nn.Module):
         for param in self.biological_connectome_core.parameters():
             param.requires_grad = False
 
+        # Residual / Skip Path: linear projection of raw features to heads
+        # Bypasses frozen reservoir to ensure raw sensory cues aren't bottlenecked
+        self.skip_projection = nn.Linear(sensory_dim, 128)
+
         # Multi-Task Trainable Adapter Heads
         self.pitch_head = nn.Linear(128, 13)       # Head 1: 0-11 Notes, 12 = Rest
         self.octave_head = nn.Linear(128, 8)       # Head 2: Octaves 0-7
@@ -391,9 +431,13 @@ class ConnectomeMultiHeadAdapter(nn.Module):
         # Signal propagation through frozen biological connectome
         brain_signals = self.biological_connectome_core(integrated)
 
-        pitch_logits = self.pitch_head(brain_signals)
-        octave_logits = self.octave_head(brain_signals)
-        strike_force = self.force_head(brain_signals).squeeze(-1)
+        # Residual skip path
+        skip_signals = self.skip_projection(stimulus)
+        head_inputs = brain_signals + skip_signals
+
+        pitch_logits = self.pitch_head(head_inputs)
+        octave_logits = self.octave_head(head_inputs)
+        strike_force = self.force_head(head_inputs).squeeze(-1)
 
         return pitch_logits, octave_logits, strike_force
 
@@ -459,45 +503,6 @@ class UnifiedFlyGymSimulation:
             self.qpos = self.qpos + 0.02 * self.qvel
 
 
-# =====================================================================
-# 4. MULTI-OBJECTIVE TRAINING & CONCERT MIMICRY PIPELINE
-# =====================================================================
-def run_music_simulation(num_keys: int = 88, audio_path: str = None, midi_path: str = None):
-    print("=" * 78)
-    print("🎹 FRUIT FLY BRAIN PIANO AI - MULTI-TASK NEURAL MIMICRY ENGINE (88 KEYS)")
-    print("=" * 78)
-    print(f"🖥️ Execution Device: {DEVICE}")
-    if DEVICE.type == "cuda":
-        gpu_name = torch.cuda.get_device_name(0)
-        vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-        print(f"⚡ GPU Detected: {gpu_name} ({vram_gb:.2f} GB VRAM)")
-
-    NUM_FLIES = 16
-    compiler = AdvancedChromaticLogicModule(num_keys=num_keys, ticks_per_beat=4)
-    presets = compiler.get_preset_ticks()
-
-    training_ticks = presets["training_scale"]
-    song_title = "Aria Math (C418)"
-
-    if midi_path:
-        loaded = compiler.load_midi_to_ticks(midi_path)
-        if loaded:
-            validation_ticks = loaded
-            song_title = os.path.basename(midi_path)
-        else:
-            validation_ticks = presets["aria_math"]
-    else:
-        validation_ticks = presets["aria_math"]
-
-    train_inputs = compiler.compile_ticks_to_sensory(training_ticks).to(DEVICE)
-    val_inputs = compiler.compile_ticks_to_sensory(validation_ticks).to(DEVICE)
-
-    target_train_pitch = torch.tensor([t["pitch"] for t in training_ticks], dtype=torch.long, device=DEVICE)
-    target_train_octave = torch.tensor([t["octave"] for t in training_ticks], dtype=torch.long, device=DEVICE)
-    target_train_force = torch.tensor([t["velocity"] for t in training_ticks], dtype=torch.float32, device=DEVICE)
-
-    sim = UnifiedFlyGymSimulation(num_flies=NUM_FLIES, feedback_dim=64, device=DEVICE)
-    model = ConnectomeMultiHeadAdapter(sensory_dim=22, feedback_dim=64).to(DEVICE)
 
 def export_connectome_weights_to_json(model: ConnectomeMultiHeadAdapter, filepath: str):
     """
@@ -621,7 +626,11 @@ def run_music_simulation(num_keys: int = 88, audio_path: str = None, midi_path: 
 
             loss_p = criterion_pitch(p_logits, p_target)
             loss_o = criterion_octave(o_logits, o_target)
-            loss_f = criterion_velocity(strike_force, f_target)
+            active_mask = (p_target != 12)
+            if active_mask.any():
+                loss_f = criterion_velocity(strike_force[active_mask], f_target[active_mask])
+            else:
+                loss_f = torch.tensor(0.0, device=DEVICE)
             total_loss = loss_p + 0.6 * loss_o + 0.8 * loss_f
 
             optimizer.zero_grad()

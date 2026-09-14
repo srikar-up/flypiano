@@ -13,6 +13,10 @@ Runs:
 
 import os
 import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
 import json
 import time
 import numpy as np
@@ -132,6 +136,33 @@ def train_and_export_all():
 
     print(f"⏱️ Training complete in {time.time() - start_t:.2f}s")
 
+    # 2b. Full Training Set Evaluation (Eval Mode - Step 8)
+    model.eval()
+    with torch.no_grad():
+        leg_fb_train = torch.zeros((num_samples, 64), device=DEVICE)
+        tr_p_logits, tr_o_logits, tr_force = model(x_train, leg_fb_train)
+        pred_tr_p = torch.argmax(tr_p_logits, dim=1)
+        pred_tr_o = torch.argmax(tr_o_logits, dim=1)
+        tr_p_hits = (pred_tr_p == p_train).sum().item()
+        tr_o_hits = (pred_tr_o == o_train).sum().item()
+        tr_p_acc = (tr_p_hits / num_samples) * 100.0
+        tr_o_acc = (tr_o_hits / num_samples) * 100.0
+
+        tr_k_hits = 0
+        for i in range(num_samples):
+            kp = compiler.components_to_key(pred_tr_p[i].item(), pred_tr_o[i].item())
+            kt = compiler.components_to_key(p_train[i].item(), o_train[i].item())
+            if kp == kt or (p_train[i].item() == 12 and pred_tr_p[i].item() == 12):
+                tr_k_hits += 1
+        tr_k_acc = (tr_k_hits / num_samples) * 100.0
+
+    print("\n" + "-" * 80)
+    print(f"🎯 Full Training Set Evaluation ({num_samples} samples):")
+    print(f"   • Training Pitch Accuracy:    {tr_p_hits}/{num_samples} ({tr_p_acc:.1f}%)")
+    print(f"   • Training Octave Accuracy:   {tr_o_hits}/{num_samples} ({tr_o_acc:.1f}%)")
+    print(f"   • Training Exact Key Match:   {tr_k_hits}/{num_samples} ({tr_k_acc:.1f}%)")
+    print("-" * 80)
+
     # 3. Save PyTorch Model
     pt_path = "fly_piano_multihead_adapter.pt"
     torch.save(model.state_dict(), pt_path)
@@ -221,6 +252,11 @@ def train_and_export_all():
     print(f"   • Exact 88-Key Match Rate:    {val_k_hits}/{val_items} ({k_acc_val:.1f}%)")
     print(f"   • Active Strike Velocity MAE: {act_f_mae:.3f} (Overall MAE: {f_mae_val:.3f})")
     print(f"   • Composite Generalization:   {comp_val:.2f}%")
+    print("-" * 80)
+    print(f"📈 Generalization Gap (Train vs Held-Out):")
+    print(f"   • Pitch Accuracy:  Train {tr_p_acc:.1f}% vs Held-out {p_acc_val:.1f}% (Gap: {abs(tr_p_acc - p_acc_val):.1f}%)")
+    print(f"   • Octave Accuracy: Train {tr_o_acc:.1f}% vs Held-out {o_acc_val:.1f}% (Gap: {abs(tr_o_acc - o_acc_val):.1f}%)")
+    print(f"   • Key Match Rate:  Train {tr_k_acc:.1f}% vs Held-out {k_acc_val:.1f}% (Gap: {abs(tr_k_acc - k_acc_val):.1f}%)")
     print("=" * 80)
 
     # Save concert_data.json

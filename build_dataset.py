@@ -100,11 +100,14 @@ def add_biological_auditory_noise(feature_vec: np.ndarray,
 
 def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
                                        sample_rate: int = 22050,
-                                       augment_repeats: int = 3) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                                       augment_repeats: int = 2,
+                                       do_waveform_aug: bool = True) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Processes real audio file aligned with MIDI tick events.
     For each tick, extracts windowed audio features and pairs with ground-truth labels.
+    Performs waveform-level pitch shift & time stretch augmentation with transposed MIDI targets.
     """
+    import librosa
     has_audio = False
     audio = None
 
@@ -124,7 +127,6 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
 
     # Map ticks to time
     window_samples = 4096
-    hop_samples = 2048
 
     for t_idx, ev in enumerate(midi_ticks):
         is_rest = ev.get("is_rest", False)
@@ -148,7 +150,7 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
         else:
             chunk = synthesize_acoustic_note(midi_note, duration_sec=0.25, velocity=force_label, sample_rate=sample_rate)
 
-        # 2. Extract 14-D features via YIN + Chroma + RMS
+        # 2. Extract 14-D features via YIN (with octave guard) + Chroma + RMS
         clean_feat = pitch_features.extract_frame_features(chunk, sample_rate=sample_rate)
 
         # 3. Add clean feature
@@ -157,7 +159,41 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
         all_octave_labels.append(octave_label)
         all_force_labels.append(force_label)
 
-        # 4. Generate augmented noisy versions (cents jitter, harmonics)
+        # 4. Waveform-level audio augmentation (pitch shifting & time stretching)
+        if do_waveform_aug and not is_rest and midi_note is not None and 21 <= midi_note <= 108:
+            # Waveform pitch shift: transpose waveform and ground-truth MIDI target together
+            for shift_steps in [-2, -1, 1, 2]:
+                shifted_midi = midi_note + shift_steps
+                if 21 <= shifted_midi <= 108:
+                    try:
+                        shifted_chunk = librosa.effects.pitch_shift(chunk, sr=sample_rate, n_steps=shift_steps)
+                        shifted_feat = pitch_features.extract_frame_features(shifted_chunk, sample_rate=sample_rate)
+                        shifted_p = (shifted_midi - 12) % 12
+                        shifted_o = max(0, min(7, (shifted_midi - 12) // 12))
+                        all_inputs.append(shifted_feat)
+                        all_pitch_labels.append(shifted_p)
+                        all_octave_labels.append(shifted_o)
+                        all_force_labels.append(force_label)
+                    except Exception:
+                        pass
+
+            # Waveform time stretch
+            for rate in [0.88, 1.14]:
+                try:
+                    stretched = librosa.effects.time_stretch(chunk, rate=rate)
+                    if len(stretched) < window_samples:
+                        stretched = np.pad(stretched, (0, window_samples - len(stretched)), mode='constant')
+                    else:
+                        stretched = stretched[:window_samples]
+                    stretched_feat = pitch_features.extract_frame_features(stretched, sample_rate=sample_rate)
+                    all_inputs.append(stretched_feat)
+                    all_pitch_labels.append(pitch_label)
+                    all_octave_labels.append(octave_label)
+                    all_force_labels.append(force_label)
+                except Exception:
+                    pass
+
+        # 5. Generate augmented noisy versions (cents jitter, harmonics)
         for _ in range(augment_repeats):
             noisy_feat = add_biological_auditory_noise(clean_feat)
             all_inputs.append(noisy_feat)
@@ -197,13 +233,13 @@ def build_all_datasets(workspace_dir: str = "."):
     aria_ticks = compiler.load_midi_to_ticks(aria_mid_path) or presets["aria_math"]
 
     print("📊 Generating Training Dataset...")
-    # Real audio Aria Math
+    # Real audio Aria Math with real waveform pitch-shift & time-stretch augmentation
     x_aria, p_aria, o_aria, f_aria = extract_features_from_audio_stream(
-        aria_mp3_path, aria_ticks, augment_repeats=4
+        aria_mp3_path, aria_ticks, augment_repeats=2, do_waveform_aug=True
     )
     # Synthetic chromatic scale multi-octave
     x_scale, p_scale, o_scale, f_scale = extract_features_from_audio_stream(
-        "nonexistent.mp3", train_scale_ticks, augment_repeats=2
+        "nonexistent.mp3", train_scale_ticks, augment_repeats=1, do_waveform_aug=True
     )
 
     x_train = np.vstack([x_aria, x_scale])
@@ -223,8 +259,9 @@ def build_all_datasets(workspace_dir: str = "."):
         # Fallback to scale if Bach midi not parseable
         bach_ticks = aria_ticks[:32]
 
+    # Clean, authentic held-out evaluation (NO waveform distortion / NO noise added)
     x_val, p_val, o_val, f_val = extract_features_from_audio_stream(
-        bach_mp3_path, bach_ticks, augment_repeats=1
+        bach_mp3_path, bach_ticks, augment_repeats=0, do_waveform_aug=False
     )
     print(f"✅ Held-Out Validation Dataset Ready: {len(x_val)} samples.")
 

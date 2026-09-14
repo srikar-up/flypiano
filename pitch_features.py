@@ -74,6 +74,25 @@ def yin_pitch_detect(signal_chunk: np.ndarray, sample_rate: int = 22050,
         else:
             return 0.0  # Unvoiced / noise floor
 
+    # 4b. Octave-Error Guard:
+    # If the chosen dip is the 2nd harmonic (half period / +1 octave error),
+    # check if the fundamental at roughly 2 * chosen_period has a comparable dip.
+    # True fundamentals are usually at least comparably strong to their 2nd harmonic,
+    # so if the candidate at 2 * chosen_period is nearly as deep, prefer the lower-frequency (larger period) candidate.
+    double_period = int(round(chosen_period * 2))
+    if double_period <= max_period:
+        search_tol = max(2, int(0.10 * chosen_period))
+        low_bound = max(min_period, double_period - search_tol)
+        high_bound = min(max_period, double_period + search_tol)
+        sub_range = cmndf[low_bound:high_bound + 1]
+        best_offset = int(np.argmin(sub_range))
+        best_double_tau = low_bound + best_offset
+        best_double_val = sub_range[best_offset]
+
+        # Prefer the fundamental if its dip is legitimately deep and nearly as strong as chosen dip
+        if best_double_val < 0.20 and best_double_val <= cmndf[chosen_period] + 0.03:
+            chosen_period = best_double_tau
+
     # 5. Parabolic Interpolation for continuous sub-sample precision
     refined_period = float(chosen_period)
     if min_period < chosen_period < max_period:

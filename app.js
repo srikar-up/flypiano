@@ -1255,64 +1255,92 @@ class FlyPiano3DScene {
 class StandardMidiParser {
   static parse(arrayBuffer) {
     const bytes = new Uint8Array(arrayBuffer);
+    if (!bytes || bytes.length < 14) {
+      throw new Error('MIDI file too small or empty');
+    }
+
     let offset = 0;
 
-    // Check Header "MThd"
-    const headerStr = String.fromCharCode(...bytes.slice(0, 4));
-    if (headerStr !== 'MThd') {
-      throw new Error('Not a valid Standard MIDI file (Missing MThd header)');
+    // 1. Locate "MThd" chunk header (handles RIFF RMID wrappers and metadata padding)
+    let foundHeader = false;
+    for (let i = 0; i <= Math.min(bytes.length - 14, 1024); i++) {
+      if (bytes[i] === 0x4D && bytes[i+1] === 0x54 && bytes[i+2] === 0x68 && bytes[i+3] === 0x64) {
+        offset = i;
+        foundHeader = true;
+        break;
+      }
     }
+
+    if (!foundHeader) {
+      throw new Error('Not a valid Standard MIDI file (Missing MThd chunk)');
+    }
+
+    offset += 4; // Skip "MThd"
+    const headerLen = ((bytes[offset] * 16777216) + (bytes[offset+1] << 16) + (bytes[offset+2] << 8) + bytes[offset+3]) >>> 0;
     offset += 4;
-    const headerLen = (bytes[offset] << 24) | (bytes[offset+1] << 16) | (bytes[offset+2] << 8) | bytes[offset+3];
-    offset += 4;
+
     const format = (bytes[offset] << 8) | bytes[offset+1];
     const numTracks = (bytes[offset+2] << 8) | bytes[offset+3];
     const division = (bytes[offset+4] << 8) | bytes[offset+5];
-    offset += headerLen;
+    offset += Math.max(6, headerLen); // Advance past header data
 
-    const ticksPerBeat = ((division & 0x8000) === 0 && division > 0) ? division : 480;
+    // division: positive = ticks per beat (quarter note); negative = SMPTE
+    let ticksPerBeat = 480;
+    if ((division & 0x8000) === 0 && division > 0) {
+      ticksPerBeat = division;
+    }
 
-    let detectedBpm = 100;
+    let detectedBpm = 120;
     const allNotes = []; // { note, startTick, endTick, vel, channel }
 
     for (let t = 0; t < numTracks; t++) {
-      if (offset >= bytes.length) break;
-      const trackHeader = String.fromCharCode(...bytes.slice(offset, offset + 4));
-      offset += 4;
-      if (trackHeader !== 'MTrk') break;
+      if (offset >= bytes.length - 8) break;
 
-      const trackLen = (bytes[offset] << 24) | (bytes[offset+1] << 16) | (bytes[offset+2] << 8) | bytes[offset+3];
+      // Locate next 'MTrk' chunk header
+      let foundTrack = false;
+      while (offset <= bytes.length - 8) {
+        if (bytes[offset] === 0x4D && bytes[offset+1] === 0x54 && bytes[offset+2] === 0x72 && bytes[offset+3] === 0x6B) {
+          foundTrack = true;
+          break;
+        }
+        offset++;
+      }
+      if (!foundTrack) break;
+
+      offset += 4; // Skip 'MTrk'
+      const trackLen = ((bytes[offset] * 16777216) + (bytes[offset+1] << 16) + (bytes[offset+2] << 8) + bytes[offset+3]) >>> 0;
       offset += 4;
-      const trackEnd = offset + trackLen;
+      const trackEnd = Math.min(bytes.length, offset + trackLen);
 
       let currentTick = 0;
       let runningStatus = 0;
       const activeNotes = new Map(); // (channel << 8 | pitch) -> { startTick, vel }
 
-      while (offset < trackEnd && offset < bytes.length) {
+      while (offset < trackEnd) {
         // Read VLQ Delta Time
         let deltaTime = 0;
-        while (offset < trackEnd && offset < bytes.length) {
+        while (offset < trackEnd) {
           const b = bytes[offset++];
           deltaTime = (deltaTime << 7) | (b & 0x7F);
           if (!(b & 0x80)) break;
         }
         currentTick += deltaTime;
 
-        if (offset >= trackEnd || offset >= bytes.length) break;
+        if (offset >= trackEnd) break;
 
         let status = bytes[offset];
         if (status >= 0x80) {
           offset++;
           if (status < 0xF0) {
-            runningStatus = status;
-          } else {
-            runningStatus = 0; // System Common, Realtime and Meta cancel running status
+            runningStatus = status; // Channel voice messages establish running status
+          } else if (status === 0xF0 || status === 0xF7) {
+            runningStatus = 0; // SysEx cancels running status
           }
+          // Note: Meta events (status === 0xFF) do NOT cancel running status (MIDI 1.0 Spec)
         } else if (runningStatus >= 0x80) {
           status = runningStatus;
         } else {
-          // Unexpected non-status byte with no active running status: advance to avoid infinite hang
+          // Skip invalid byte without active running status to avoid desync
           offset++;
           continue;
         }
@@ -1321,16 +1349,23 @@ class StandardMidiParser {
         const channel = status & 0x0F;
 
         if (status === 0xFF) {
-          // Meta Event
-          if (offset >= trackEnd || offset >= bytes.length) break;
+          // Meta Event: 0xFF <type> <VLQ length> <data...>
+          if (offset >= trackEnd) break;
           const metaType = bytes[offset++];
           let metaLen = 0;
-          while (offset < trackEnd && offset < bytes.length) {
+          while (offset < trackEnd) {
             const b = bytes[offset++];
             metaLen = (metaLen << 7) | (b & 0x7F);
             if (!(b & 0x80)) break;
           }
-          if (metaType === 0x51 && metaLen === 3 && offset + 2 < bytes.length) {
+
+          if (metaType === 0x2F) {
+            // End of Track marker: cleanly exit track loop
+            offset += metaLen;
+            break;
+          }
+
+          if (metaType === 0x51 && metaLen === 3 && offset + 2 < trackEnd) {
             // Set Tempo (microseconds per quarter note)
             const usPerQuarter = (bytes[offset] << 16) | (bytes[offset+1] << 8) | bytes[offset+2];
             if (usPerQuarter > 0) {
@@ -1339,17 +1374,17 @@ class StandardMidiParser {
           }
           offset += metaLen;
         } else if (status === 0xF0 || status === 0xF7) {
-          // SysEx Event
+          // SysEx Event: <0xF0/0xF7> <VLQ length> <data...>
           let sysexLen = 0;
-          while (offset < trackEnd && offset < bytes.length) {
+          while (offset < trackEnd) {
             const b = bytes[offset++];
             sysexLen = (sysexLen << 7) | (b & 0x7F);
             if (!(b & 0x80)) break;
           }
           offset += sysexLen;
         } else if (msgType === 0x90) {
-          // Note On
-          if (offset + 1 >= bytes.length) break;
+          // Note On: <pitch> <velocity>
+          if (offset + 1 >= trackEnd) break;
           const pitch = bytes[offset++];
           const vel = bytes[offset++];
           const key = (channel << 8) | pitch;
@@ -1360,7 +1395,7 @@ class StandardMidiParser {
             }
             activeNotes.set(key, { startTick: currentTick, vel });
           } else {
-            // Note On with velocity 0 is Note Off
+            // Velocity 0 is Note Off
             if (activeNotes.has(key)) {
               const prev = activeNotes.get(key);
               activeNotes.delete(key);
@@ -1368,8 +1403,8 @@ class StandardMidiParser {
             }
           }
         } else if (msgType === 0x80) {
-          // Note Off
-          if (offset + 1 >= bytes.length) break;
+          // Note Off: <pitch> <velocity>
+          if (offset + 1 >= trackEnd) break;
           const pitch = bytes[offset++];
           const vel = bytes[offset++];
           const key = (channel << 8) | pitch;
@@ -1380,11 +1415,11 @@ class StandardMidiParser {
           }
         } else if (msgType === 0xC0 || msgType === 0xD0) {
           // Program Change, Channel Pressure (1 data byte)
-          if (offset < bytes.length) offset += 1;
+          if (offset < trackEnd) offset += 1;
         } else if (msgType === 0xA0 || msgType === 0xB0 || msgType === 0xE0) {
           // Polyphonic Pressure, Control Change, Pitch Bend (2 data bytes)
-          if (offset + 1 < bytes.length) offset += 2;
-          else offset = bytes.length;
+          if (offset + 1 < trackEnd) offset += 2;
+          else offset = trackEnd;
         } else {
           offset++;
         }
@@ -1392,12 +1427,12 @@ class StandardMidiParser {
 
       // Close any notes remaining active at track end
       activeNotes.forEach((val, key) => {
-        allNotes.push({ 
-          note: key & 0xFF, 
+        allNotes.push({
+          note: key & 0xFF,
           channel: (key >> 8) & 0x0F,
-          startTick: val.startTick, 
-          endTick: Math.max(val.startTick + ticksPerBeat, currentTick), 
-          vel: val.vel 
+          startTick: val.startTick,
+          endTick: Math.max(val.startTick + Math.round(ticksPerBeat / 2), currentTick),
+          vel: val.vel
         });
       });
 
@@ -1405,14 +1440,14 @@ class StandardMidiParser {
     }
 
     if (allNotes.length === 0) {
-      return { bpm: detectedBpm || 100, events: [], totalNotes: 0 };
+      return { bpm: detectedBpm || 120, events: [], totalNotes: 0 };
     }
 
-    // Filter out percussion channel 9 (GM Channel 10) if melodic channels exist
+    // Filter out percussion channel 9 (GM Channel 10) if other melodic channels exist
     const hasMelodicNotes = allNotes.some(n => n.channel !== 9);
     const candidateNotes = hasMelodicNotes ? allNotes.filter(n => n.channel !== 9) : allNotes;
 
-    // Transpose notes into 88-key grand piano range [21, 108]
+    // Transpose notes into 88-key grand piano range [21, 108] (A0 to C8)
     candidateNotes.forEach(n => {
       let p = n.note;
       while (p < 21) p += 12;
@@ -1443,7 +1478,7 @@ class StandardMidiParser {
     }
 
     return {
-      bpm: detectedBpm || 100,
+      bpm: detectedBpm || 120,
       events,
       totalNotes: events.length
     };
@@ -1620,7 +1655,21 @@ class ConnectomeInferenceEngine {
       brainSignals[i] = sum > 0 ? sum : 0;
     }
 
-    // E. Multi-Heads:
+    // E. Residual Skip / Shortcut Connection (raw 14-D features -> head input)
+    const wSkip = W['skip_projection.weight'];
+    const bSkip = W['skip_projection.bias'];
+    const headInput = new Float32Array(128);
+    for (let i = 0; i < 128; i++) {
+      let skipVal = 0;
+      if (wSkip && bSkip && wSkip[i]) {
+        skipVal = bSkip[i];
+        const row = wSkip[i];
+        for (let j = 0; j < 14; j++) skipVal += row[j] * x14[j];
+      }
+      headInput[i] = brainSignals[i] + skipVal;
+    }
+
+    // F. Multi-Heads:
     // Head 1: Pitch (13-D)
     const wPitch = W['pitch_head.weight'];
     const bPitch = W['pitch_head.bias'];
@@ -1629,7 +1678,7 @@ class ConnectomeInferenceEngine {
     for (let p = 0; p < 13; p++) {
       let sum = bPitch[p];
       const row = wPitch[p];
-      for (let j = 0; j < 128; j++) sum += row[j] * brainSignals[j];
+      for (let j = 0; j < 128; j++) sum += row[j] * headInput[j];
       if (sum > maxPVal) {
         maxPVal = sum;
         predP = p;
@@ -1644,7 +1693,7 @@ class ConnectomeInferenceEngine {
     for (let o = 0; o < 8; o++) {
       let sum = bOct[o];
       const row = wOct[o];
-      for (let j = 0; j < 128; j++) sum += row[j] * brainSignals[j];
+      for (let j = 0; j < 128; j++) sum += row[j] * headInput[j];
       if (sum > maxOVal) {
         maxOVal = sum;
         predO = o;
@@ -1658,7 +1707,7 @@ class ConnectomeInferenceEngine {
     for (let i = 0; i < 32; i++) {
       let sum = bF0[i];
       const row = wF0[i];
-      for (let j = 0; j < 128; j++) sum += row[j] * brainSignals[j];
+      for (let j = 0; j < 128; j++) sum += row[j] * headInput[j];
       f0[i] = sum > 0 ? sum : 0;
     }
     const wF2 = W['force_head.2.weight'];
@@ -2065,14 +2114,16 @@ class FlyPianoApp {
         }
       });
 
-      statusBox.textContent = `✅ Extracted ${neuralEvents.length} neural ticks from "${displayName || filepath}" at ${result.bpm} BPM! Fly brain ready to mimic on 88-key piano!`;
+      statusBox.textContent = `✅ Extracted ${neuralEvents.length} neural ticks from "${displayName || filepath}" at ${result.bpm} BPM! Performance starting...`;
       this.loadSong(displayName || filepath, neuralEvents, result.bpm);
+      this.startPlayback();
     } catch (e) {
       console.warn("Could not fetch local MIDI file, falling back to preset if Aria Math:", e);
       if (filepath.includes('AriaMath')) {
         statusBox.textContent = `✅ Loaded authentic Aria Math Multi-Head Preset at 100 BPM!`;
         const preset = PRESETS.aria_math;
         this.loadSong(preset.name, preset.events, preset.bpm);
+        this.startPlayback();
       } else {
         statusBox.textContent = `⚠️ Error loading MIDI: ${e.message}`;
       }
@@ -2158,6 +2209,19 @@ class FlyPianoApp {
     const windowSize = 4096;
     const numHops = Math.min(Math.floor((channelData.length - windowSize) / hopSize), 300);
 
+    // Adaptive Track-Wide RMS Statistics
+    let totalTrackEnergy = 0;
+    const sampleStep = Math.max(1, Math.floor(channelData.length / 5000));
+    let sampleCount = 0;
+    for (let i = 0; i < channelData.length; i += sampleStep) {
+      totalTrackEnergy += Math.abs(channelData[i]);
+      sampleCount++;
+    }
+    const avgEnergy = sampleCount > 0 ? (totalTrackEnergy / sampleCount) : 0.02;
+    // Sensitive baseline floor: prevents missing quiet/classical notes
+    const energyFloor = Math.max(0.008, Math.min(0.025, avgEnergy * 0.40));
+    const ratioThreshold = 1.15;
+
     let prevEnergy = 0;
     let lastOnsetTime = 0;
 
@@ -2172,7 +2236,13 @@ class FlyPianoApp {
       }
       energy = Math.sqrt(energy / (windowSize / 4));
 
-      if (energy > 0.035 && energy > prevEnergy * 1.35 && (timeSec - lastOnsetTime) > 0.15) {
+      // Adaptive onset detection: triggers on dynamic attacks or sustained transitions
+      const isAttack = (energy > energyFloor) && (
+        (energy > prevEnergy * ratioThreshold) ||
+        (energy > energyFloor * 1.4 && (timeSec - lastOnsetTime) > 0.35)
+      );
+
+      if (isAttack && (timeSec - lastOnsetTime) > 0.12) {
         const pitchFreq = this.detectPitchAutocorrelation(channelData, offset, windowSize, sampleRate);
         const chroma = this.compute12Chroma(channelData, offset, windowSize, sampleRate);
 
@@ -2222,8 +2292,10 @@ class FlyPianoApp {
       prevEnergy = energy;
     }
 
+    console.log('events found:', events.length);
     if (events.length === 0) {
-      return PRESETS.aria_math.events;
+      console.warn('⚠️ No onset events found in uploaded audio with adaptive threshold.');
+      return []; // NEVER masquerade as real output with hardcoded preset!
     }
 
     return events;
@@ -2237,30 +2309,18 @@ class FlyPianoApp {
     const statusBox = document.getElementById('audio-analysis-status');
     statusBox.style.display = 'block';
 
-    const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(file.name);
+    const fileNameLower = (file.name || '').toLowerCase();
+    const fileTypeLower = (file.type || '').toLowerCase();
 
-    if (isAudio) {
-      statusBox.textContent = `🎵 Loaded Audio: "${file.name}". Extracting pitch classes, octaves & dynamics for Fly Brain Neural Mimicry...`;
-      try {
-        this.synth.init();
-        if (this.audioElement) {
-          this.audioElement.pause();
-          this.audioElement = null;
-        }
+    // Prioritize MIDI files: check file extension and MIDI-specific MIME types
+    const isMidi = /\.(mid|midi|kar)$/i.test(fileNameLower) || 
+                   fileTypeLower === 'audio/midi' || 
+                   fileTypeLower === 'audio/x-midi' || 
+                   fileTypeLower === 'audio/mid' ||
+                   fileTypeLower === 'application/x-midi' ||
+                   fileTypeLower === 'application/midi';
 
-        const arrayBuffer = await file.arrayBuffer();
-        const audioBuffer = await this.synth.ctx.decodeAudioData(arrayBuffer);
-
-        const events = await this.extractNeuralNotesFromAudioBuffer(audioBuffer);
-        statusBox.textContent = `✅ Extracted ${events.length} notes from "${file.name}"! Fly Brain is ready to mimic on Acoustic Piano Strings!`;
-
-        this.loadSong(file.name, events);
-      } catch (err) {
-        console.error("Audio decode error:", err);
-        statusBox.textContent = `⚠️ Could not decode audio: ${err.message}. Loading Aria Math preset.`;
-        this.loadSong(PRESETS.aria_math.name, PRESETS.aria_math.events, PRESETS.aria_math.bpm);
-      }
-    } else {
+    if (isMidi) {
       // Standard MIDI file with accurate Delta-Time & Multi-Track Parsing
       statusBox.textContent = `⏳ Parsing MIDI tracks into Fly Brain AMMC sensory ticks: "${file.name}"...`;
       const reader = new FileReader();
@@ -2268,7 +2328,7 @@ class FlyPianoApp {
         try {
           const buffer = e.target.result;
           const result = StandardMidiParser.parse(buffer);
-          if (result.events.length > 0) {
+          if (result.events && result.events.length > 0) {
             const neuralEvents = [];
             result.events.forEach((ev) => {
               // Construct 14-D Continuous Auditory Vector
@@ -2308,17 +2368,50 @@ class FlyPianoApp {
               }
             });
 
-            statusBox.textContent = `✅ Loaded ${neuralEvents.length} ticks from "${file.name}" at ${result.bpm} BPM! Fly brain ready to mimic!`;
+            statusBox.textContent = `✅ Loaded ${neuralEvents.length} ticks from "${file.name}" at ${result.bpm} BPM! Starting performance...`;
             this.loadSong(file.name, neuralEvents, result.bpm);
+            this.startPlayback();
           } else {
-            statusBox.textContent = "⚠️ Could not extract note events from MIDI file.";
+            statusBox.textContent = `⚠️ Could not extract note events from MIDI file "${file.name}".`;
           }
         } catch (err) {
           console.error("MIDI parse error:", err);
-          statusBox.textContent = `❌ Error parsing MIDI file: ${err.message}`;
+          statusBox.textContent = `❌ Error parsing MIDI file "${file.name}": ${err.message}`;
         }
       };
       reader.readAsArrayBuffer(file);
+      return;
+    }
+
+    // Audio waveform file (MP3, WAV, OGG, M4A, etc.)
+    const isAudio = fileTypeLower.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileNameLower);
+    if (isAudio) {
+      statusBox.textContent = `🎵 Loaded Audio: "${file.name}". Extracting pitch classes, octaves & dynamics for Fly Brain Neural Mimicry...`;
+      try {
+        this.synth.init();
+        if (this.audioElement) {
+          this.audioElement.pause();
+          this.audioElement = null;
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const audioBuffer = await this.synth.ctx.decodeAudioData(arrayBuffer);
+
+        const events = await this.extractNeuralNotesFromAudioBuffer(audioBuffer);
+        if (events.length === 0) {
+          statusBox.textContent = `⚠️ No notes could be detected in "${file.name}" (audio level too low or lacking distinct melodic attacks).`;
+          return;
+        }
+        statusBox.textContent = `✅ Extracted ${events.length} notes from "${file.name}"! Fly Brain is ready to mimic on Acoustic Piano Strings!`;
+
+        this.loadSong(file.name, events);
+        this.startPlayback();
+      } catch (err) {
+        console.error("Audio decode error:", err);
+        statusBox.textContent = `❌ Could not decode audio file "${file.name}": ${err.message}.`;
+      }
+    } else {
+      statusBox.textContent = `⚠️ Unsupported file format for "${file.name}". Please drop a .mid, .mp3, or .wav file.`;
     }
   }
 
@@ -2386,6 +2479,30 @@ class FlyPianoApp {
       // If minimum dip is too weak (> 0.45), signal is considered unvoiced / noise
       if (minVal > 0.45) {
         return 0;
+      }
+    }
+
+    // 4b. Octave-Error Guard:
+    // If the chosen dip is the 2nd harmonic (half period / +1 octave error),
+    // check if the fundamental at roughly 2 * chosenPeriod has a comparable dip.
+    const doublePeriod = Math.round(chosenPeriod * 2);
+    if (doublePeriod <= maxPeriod) {
+      const searchTol = Math.max(2, Math.floor(0.10 * chosenPeriod));
+      const lowBound = Math.max(minPeriod, doublePeriod - searchTol);
+      const highBound = Math.min(maxPeriod, doublePeriod + searchTol);
+
+      let bestDoubleTau = doublePeriod;
+      let bestDoubleVal = Infinity;
+      for (let tau = lowBound; tau <= highBound; tau++) {
+        if (cmndf[tau] < bestDoubleVal) {
+          bestDoubleVal = cmndf[tau];
+          bestDoubleTau = tau;
+        }
+      }
+
+      // Prefer the fundamental if its dip is legitimately deep and nearly as strong as chosen dip
+      if (bestDoubleVal < 0.20 && bestDoubleVal <= cmndf[chosenPeriod] + 0.03) {
+        chosenPeriod = bestDoubleTau;
       }
     }
 
