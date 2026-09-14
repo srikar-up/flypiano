@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlyPiano 3D - Fruit Fly Brain Piano AI</title>
+  <meta name="description" content="Interactive 3D Fruit Fly Brain Piano AI simulation with 12-key/string piano, articulated Drosophila model, Web Audio acoustic synthesis, and music converter.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Three.js & OrbitControls CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="app-container">
+    <!-- Top Header Bar -->
+    <header class="top-nav">
+      <div class="logo-area">
+        <span class="logo-badge">🪰 BIO-AI</span>
+        <h1>FlyPiano 3D <span class="version-tag">Connectome 2.0</span></h1>
+      </div>
+      
+      <div class="status-chips">
+        <div class="chip chip-success" id="chip-gpu">
+          <span class="pulse-dot"></span>
+          <span>RTX 4060 · CUDA Active</span>
+        </div>
+        <div class="chip chip-info" id="chip-connectome">
+          <span>🧠 Multi-Task Connectome (Pitch · Octave · Force)</span>
+        </div>
+        <div class="chip chip-accent" id="chip-accuracy">
+          <span>🎯 Mimicry Score: 98.6%</span>
+        </div>
+      <div class="piano-mode-selector">
+        <button class="mode-btn" data-mode="12" id="mode-12">12 Keys</button>
+        <button class="mode-btn active" data-mode="88" id="mode-88">88-Key Grand Piano</button>
+      </div>
+
+      <div class="view-controls">
+        <button class="cam-btn active" data-view="default" id="cam-default">Perspective</button>
+        <button class="cam-btn" data-view="pianist" id="cam-pianist">Pianist POV</button>
+        <button class="cam-btn" data-view="fly" id="cam-fly">Fly Close-up</button>
+        <button class="cam-btn" data-view="top" id="cam-top">Top Down</button>
+      </div>
+    </header>
+
+    <!-- Main Central Layout -->
+    <main class="main-content">
+      <!-- Left 3D Viewport & Simulation Stage -->
+      <section class="viewport-section">
+        <div id="three-canvas-container">
+          <!-- 3D Canvas injected by app.js -->
+        </div>
+
+        <!-- Overlaid 3D Viewport Controls -->
+        <div class="viewport-overlay-top">
+          <div class="song-badge" id="current-song-badge">
+            <span class="badge-icon">🎼</span>
+            <span class="badge-text" id="active-track-name">Für Elise (Beethoven)</span>
+          </div>
+          <div class="beat-badge" id="beat-counter-badge">
+            <span>Beat: </span>
+            <strong id="current-beat-display">0 / 9</strong>
+          </div>
+        </div>
+
+        <!-- Floating Live Strike Toast -->
+        <div class="note-strike-toast" id="strike-toast">
+          <span class="toast-key" id="toast-note-name">E</span>
+          <span class="toast-channel" id="toast-channel-name">Key 4 (Channel 4)</span>
+          <span class="toast-acc" id="toast-status">✅ 100% Match</span>
+        </div>
+
+        <!-- Timeline / Transport Bar -->
+        <div class="transport-bar">
+          <div class="transport-buttons">
+            <button id="btn-play" class="btn-primary" title="Start/Pause Fly Performance">
+              <span class="btn-icon">▶</span> <span id="play-text">Play Concert</span>
+            </button>
+            <button id="btn-step" class="btn-secondary" title="Execute Single Beat">
+              <span class="btn-icon">⏭</span> Step
+            </button>
+            <button id="btn-reset" class="btn-secondary" title="Reset to Beginning">
+              <span class="btn-icon">↺</span> Reset
+            </button>
+          </div>
+
+          <div class="tone-control">
+            <label for="piano-profile-select">Piano Strings:</label>
+            <select id="piano-profile-select" class="tone-select">
+              <option value="steinway" selected>🎹 Steinway Concert Grand</option>
+              <option value="yamaha">💎 Yamaha Studio Grand (Bright / C418)</option>
+              <option value="bosendorfer">🏛️ Bösendorfer Imperial (Deep Bass)</option>
+              <option value="upright">🎙️ Vintage Upright (Honky-Tonk / Felt)</option>
+            </select>
+          </div>
+
+          <div class="speed-control">
+            <label for="tempo-slider">Tempo: <span id="tempo-val">100</span> BPM</label>
+            <input type="range" id="tempo-slider" min="40" max="220" value="100">
+          </div>
+
+          <div class="volume-control">
+            <label for="volume-slider">Piano Vol: <span id="volume-val">80</span>%</label>
+            <input type="range" id="volume-slider" min="0" max="100" value="80">
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Control & Converter Sidebar -->
+      <aside class="sidebar-section">
+        
+        <!-- Tab Navigation -->
+        <div class="sidebar-tabs">
+          <button class="tab-btn active" data-tab="tab-converter">🎵 Music Converter</button>
+          <button class="tab-btn" data-tab="tab-connectome">🧠 Connectome HUD</button>
+          <button class="tab-btn" data-tab="tab-keyboard">🎹 12-Key Studio</button>
+        </div>
+
+        <!-- TAB 1: MUSIC CONVERTER -->
+        <div class="tab-content active" id="tab-converter">
+          <div class="card">
+            <h3>Preset Repertoire (Zero-Shot AI)</h3>
+            <p class="card-desc">Select songs to test the fly's learned musical generalization:</p>
+            <div class="preset-grid">
+              <button class="preset-btn active" data-preset="aria_math">
+                <div class="preset-title">Aria Math (C418)</div>
+                <div class="preset-sub">Minecraft OST · 100 BPM Authentic</div>
+              </button>
+              <button class="preset-btn" data-preset="fur_elise">
+                <div class="preset-title">Für Elise (9/9)</div>
+                <div class="preset-sub">Beethoven · Minor Motif</div>
+              </button>
+              <button class="preset-btn" data-preset="moonlight">
+                <div class="preset-title">Moonlight Sonata</div>
+                <div class="preset-sub">Beethoven · C# Minor</div>
+              </button>
+              <button class="preset-btn" data-preset="ode_to_joy">
+                <div class="preset-title">Ode to Joy</div>
+                <div class="preset-sub">Beethoven · D Major</div>
+              </button>
+              <button class="preset-btn" data-preset="chromatic_12_scale">
+                <div class="preset-title">Chromatic 12 Scale</div>
+                <div class="preset-sub">All 12 Tones (Gym Training)</div>
+              </button>
+              <button class="preset-btn" data-preset="grand_88_scale">
+                <div class="preset-title">Grand 88-Key Sweep</div>
+                <div class="preset-sub">A0 to C8 Full Piano</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- MIDI & MP3 Audio Converter Dropzone -->
+          <div class="card">
+            <h3>MIDI & MP3 / Audio Universal Converter</h3>
+            <p class="card-desc">Drag & drop any <code>.mp3</code>, <code>.wav</code>, or <code>.mid</code> file. Full multi-track MIDI parsing with exact tempo and delta-time:</p>
+            <!-- Hidden File Input for Drag & Drop / Click Picker -->
+            <input type="file" id="file-input" accept=".mid,.midi,.kar,.mp3,.wav,.ogg,.m4a,audio/*" style="display: none;">
+
+            <div class="dropzone" id="midi-dropzone">
+              <div class="dropzone-inner">
+                <span class="drop-icon">🎵</span>
+                <p><strong>Click to Open or Drop any MIDI / MP3 file</strong></p>
+                <span class="drop-sub">Full multi-track MIDI & audio parser with true tempo, octaves, dynamics & rests</span>
+              </div>
+            </div>
+
+            <!-- Instant One-Click Workspace Music Loader -->
+            <div class="music-quickload-box" style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-sm);">
+              <div style="font-size: 0.73rem; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                ⚡ 1-Click Load from <code>music/</code> folder (Fly Brain Neural Mimicry):
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button class="btn-accent" id="btn-quick-aria-mid" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
+                  🎼 Mimic AriaMath.mid
+                </button>
+                <button class="btn-secondary" id="btn-quick-aria-mp3" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
+                  🧠 Mimic AriaMath.mp3
+                </button>
+                <button class="btn-secondary" id="btn-quick-mario-mid" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
+                  🎮 Mimic Mario64.mid
+                </button>
+                <button class="btn-secondary" id="btn-quick-bach-mid" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
+                  🎻 Mimic Bach Cello.mid
+                </button>
+              </div>
+              <div style="margin-top: 8px;">
+                <button class="btn-secondary" id="btn-load-concert-json" style="width: 100%; font-size: 0.72rem; padding: 6px 8px; justify-content: center;">
+                  📊 Load AI Mimicry Concert Data (concert_data.json)
+                </button>
+              </div>
+            </div>
+            
+            <div class="audio-options-group" style="margin-top: 8px; display: flex; gap: 8px;">
+              <button class="btn-secondary" id="btn-audio-mode" style="flex: 1; font-size: 0.72rem; padding: 6px 10px;">
+                Performance Engine: <strong id="audio-mode-label" style="color: var(--accent-cyan);">Acoustic Grand Piano Strings (Physical Synthesis)</strong>
+              </button>
+            </div>
+            <div id="audio-analysis-status" style="margin-top: 8px; font-size: 0.75rem; color: var(--accent-cyan); display: none;"></div>
+          </div>
+
+          <!-- Custom Notes Sequence Converter Input -->
+          <div class="card">
+            <h3>Custom Note Sequence Converter</h3>
+            <p class="card-desc">Enter MIDI notes (e.g. <code>60, 62, 64, 65, 67, 69, 71, 72</code>) or note names (e.g. <code>C4, E4, G4, B4</code>):</p>
+            <div class="custom-input-group">
+              <input type="text" id="custom-notes-input" placeholder="e.g. 76, 75, 76, 71, 74, 72, 69" value="76, 75, 76, 75, 76, 71, 74, 72, 69">
+              <button id="btn-convert-notes" class="btn-accent">Compile to Fly</button>
+            </div>
+            <div class="conversion-preview" id="conversion-preview">
+              <div class="stream-label">12-Channel Sensory Stream:</div>
+              <div class="stream-chips" id="stream-chips">
+                <!-- Injected by app.js -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: MULTI-TASK CONNECTOME HUD (fixplan.md) -->
+        <div class="tab-content" id="tab-connectome">
+          <!-- Head 1: Pitch Class & Rest -->
+          <div class="card">
+            <h3>Head 1: Pitch Class Choice (12 Notes + ⏸ Rest)</h3>
+            <p class="card-desc">Discrete(13) prediction separating harmonic notes from pauses:</p>
+            <div class="neuron-grid-13" id="pitch-head-neurons">
+              <!-- 13 channels (C to B + REST) generated dynamically by app.js -->
+            </div>
+          </div>
+
+          <!-- Head 2: Octave Selector -->
+          <div class="card">
+            <h3>Head 2: Octave Range Selector (Octaves 0–7)</h3>
+            <p class="card-desc">Discrete(8) keyboard zone targeting (A0 Sub-bass up to C8 High-treble):</p>
+            <div class="octave-gauge-grid" id="octave-head-gauge">
+              <!-- Octaves 0 to 7 generated dynamically by app.js -->
+            </div>
+          </div>
+
+          <!-- Head 3: Continuous Strike Force (Velocity) -->
+          <div class="card">
+            <h3>Head 3: Continuous Key Force (Tone & Expression)</h3>
+            <p class="card-desc">Continuous [0.0, 1.0] hammer strike velocity modulating physical string tone:</p>
+            <div class="force-meter-wrapper">
+              <div class="force-bar-track">
+                <div class="force-bar-fill" id="force-meter-fill" style="width: 75%;"></div>
+              </div>
+              <div class="force-meta-row">
+                <span>Strike Force: <strong id="force-val-display">0.75</strong></span>
+                <span id="force-dynamics-badge" class="badge-dynamic">mf (mezzo-forte)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Frozen Biological Connectome Core Matrix -->
+          <div class="card">
+            <h3>Frozen Biological Connectome Matrix (FlyWire)</h3>
+            <p class="card-desc">512-neuron biological reservoir (synaptic weights strictly frozen, <code>requires_grad=False</code>):</p>
+            <canvas id="connectome-matrix-canvas" width="300" height="110"></canvas>
+          </div>
+        </div>
+
+        <!-- TAB 3: 12-KEY STUDIO & VIRTUAL KEYBOARD -->
+        <div class="tab-content" id="tab-keyboard">
+          <div class="card">
+            <h3>Interactive 12-Tone Piano Studio</h3>
+            <p class="card-desc">Click any key to audition the acoustic piano synthesizer and watch the fly react:</p>
+            
+            <div class="piano-keyboard-wrapper">
+              <div class="piano-keyboard" id="interactive-piano">
+                <!-- White & Black keys generated by app.js -->
+              </div>
+            </div>
+
+            <div class="key-info-box" id="key-info-box">
+              <div class="info-row"><span>Canonical Note:</span> <strong id="info-note-name">C4</strong></div>
+              <div class="info-row"><span>Channel Index:</span> <strong id="info-channel">0</strong></div>
+              <div class="info-row"><span>Fundamental Frequency:</span> <strong id="info-freq">261.63 Hz</strong></div>
+              <div class="info-row"><span>Assigned Fly Actuator:</span> <strong id="info-leg">Left Foreleg (Tarsus L1)</strong></div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </main>
+
+    <!-- Bottom Status Footer -->
+    <footer class="bottom-footer">
+      <div class="footer-left">
+        <span>Bio-Inspired Neural Robotics · FlyGym 2.0 & PyTorch Connectome Architecture</span>
+      </div>
+      <div class="footer-right">
+        <span>Fruit Fly Digital Twin: <em>Drosophila melanogaster</em> (12-String Resonant Grand Piano)</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
