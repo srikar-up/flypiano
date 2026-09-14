@@ -99,7 +99,13 @@ def train_and_export_all():
 
             loss_p = crit_pitch(p_logits, b_p)
             loss_o = crit_octave(o_logits, b_o)
-            loss_f = crit_force(force, b_f)
+
+            # P1 Fix: Mask velocity loss to active (non-rest) notes only to prevent collapse to zero
+            active_mask = (b_p != 12)
+            if active_mask.any():
+                loss_f = crit_force(force[active_mask].view(-1), b_f[active_mask].view(-1))
+            else:
+                loss_f = torch.tensor(0.0, device=DEVICE)
 
             loss = loss_p + 0.6 * loss_o + 0.8 * loss_f
 
@@ -146,6 +152,8 @@ def train_and_export_all():
     val_o_hits = 0
     val_k_hits = 0
     val_force_err = 0.0
+    active_val_items = 0
+    active_force_err = 0.0
     records = []
 
     with torch.no_grad():
@@ -177,6 +185,10 @@ def train_and_export_all():
             if k_match: val_k_hits += 1
             val_force_err += f_err
 
+            if tp != 12:
+                active_val_items += 1
+                active_force_err += f_err
+
             t_name = compiler.get_note_name(tk) if tp != 12 else "⏸ REST"
             f_name = compiler.get_note_name(fk) if fp != 12 else "⏸ REST"
 
@@ -200,14 +212,15 @@ def train_and_export_all():
     o_acc_val = (val_o_hits / val_items) * 100.0
     k_acc_val = (val_k_hits / val_items) * 100.0
     f_mae_val = val_force_err / val_items
-    comp_val = (k_acc_val * 0.5) + (p_acc_val * 0.2) + (o_acc_val * 0.15) + ((1.0 - min(1.0, f_mae_val)) * 100.0 * 0.15)
+    act_f_mae = (active_force_err / active_val_items) if active_val_items > 0 else f_mae_val
+    comp_val = (k_acc_val * 0.5) + (p_acc_val * 0.2) + (o_acc_val * 0.15) + ((1.0 - min(1.0, act_f_mae)) * 100.0 * 0.15)
 
     print(f"📊 Held-Out Generalization Results (Unseen Audio):")
-    print(f"   • Pitch & Rest Accuracy:    {val_p_hits}/{val_items} ({p_acc_val:.1f}%)")
-    print(f"   • Octave Range Accuracy:    {val_o_hits}/{val_items} ({o_acc_val:.1f}%)")
-    print(f"   • Exact 88-Key Match Rate:  {val_k_hits}/{val_items} ({k_acc_val:.1f}%)")
-    print(f"   • Strike Velocity MAE:      {f_mae_val:.3f}")
-    print(f"   • Composite Generalization: {comp_val:.2f}%")
+    print(f"   • Pitch & Rest Accuracy:      {val_p_hits}/{val_items} ({p_acc_val:.1f}%)")
+    print(f"   • Octave Range Accuracy:      {val_o_hits}/{val_items} ({o_acc_val:.1f}%)")
+    print(f"   • Exact 88-Key Match Rate:    {val_k_hits}/{val_items} ({k_acc_val:.1f}%)")
+    print(f"   • Active Strike Velocity MAE: {act_f_mae:.3f} (Overall MAE: {f_mae_val:.3f})")
+    print(f"   • Composite Generalization:   {comp_val:.2f}%")
     print("=" * 80)
 
     # Save concert_data.json

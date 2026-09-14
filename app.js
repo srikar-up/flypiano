@@ -492,8 +492,8 @@ class FlyPiano3DScene {
     const height = this.container.clientHeight || window.innerHeight;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0d13);
-    this.scene.fog = new THREE.FogExp2(0x0a0d13, 0.018);
+    this.scene.background = new THREE.Color(0xf8fafc);
+    this.scene.fog = new THREE.FogExp2(0xf8fafc, 0.012);
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 150);
     this.camera.position.set(0, 8.5, 15.0);
@@ -524,23 +524,23 @@ class FlyPiano3DScene {
   }
 
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0x1e293b, 1.4);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.35);
     this.scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
     keyLight.position.set(8, 18, 12);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
     this.scene.add(keyLight);
 
-    const rimLight = new THREE.PointLight(0x06b6d4, 3.5, 30);
-    rimLight.position.set(-10, 6, -5);
-    this.scene.add(rimLight);
+    const fillLight = new THREE.DirectionalLight(0xf1f5f9, 0.7);
+    fillLight.position.set(-10, 10, -6);
+    this.scene.add(fillLight);
 
-    const goldLight = new THREE.PointLight(0xf59e0b, 3, 25);
-    goldLight.position.set(10, 5, 2);
-    this.scene.add(goldLight);
+    const softLight = new THREE.DirectionalLight(0xe2e8f0, 0.5);
+    softLight.position.set(0, 14, -12);
+    this.scene.add(softLight);
   }
 
   rebuildPiano(is88Mode) {
@@ -576,20 +576,20 @@ class FlyPiano3DScene {
     const blackKeyHeight = 0.26;
 
     const frameGeo = new THREE.BoxGeometry(totalWidth + 1.2, 0.6, 4.4);
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.2 });
     const pianoFrame = new THREE.Mesh(frameGeo, frameMat);
     pianoFrame.position.set(0, 0.3, -0.8);
     pianoFrame.receiveShadow = true;
     this.pianoGroup.add(pianoFrame);
 
     const harpGeo = new THREE.BoxGeometry(totalWidth + 0.8, 2.5, 0.25);
-    const harpMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.6 });
+    const harpMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.3 });
     const harp = new THREE.Mesh(harpGeo, harpMat);
     harp.position.set(0, 1.8, -2.8);
     this.pianoGroup.add(harp);
 
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.15, metalness: 0.05 });
-    const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.25, metalness: 0.85 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.0 });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.3 });
 
     let whiteIdx = 0;
     const whitePositions = [];
@@ -640,9 +640,9 @@ class FlyPiano3DScene {
 
       const stringGeo = new THREE.CylinderGeometry(0.012, 0.012, stringHeight, 6);
       const stringMat = new THREE.MeshStandardMaterial({
-        color: 0xf59e0b,
-        metalness: 0.95,
-        roughness: 0.2,
+        color: 0x94a3b8,
+        metalness: 0.8,
+        roughness: 0.35,
         emissive: 0x000000
       });
 
@@ -665,13 +665,13 @@ class FlyPiano3DScene {
     const blackKeyHeight = 0.28;
 
     const frameGeo = new THREE.BoxGeometry(6.6, 0.6, 3.8);
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.2, metalness: 0.8 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.2 });
     const pianoFrame = new THREE.Mesh(frameGeo, frameMat);
     pianoFrame.position.set(0, 0.3, -0.6);
     this.pianoGroup.add(pianoFrame);
 
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.15, metalness: 0.1 });
-    const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.0 });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.3 });
 
     const whiteKeyPitchIndices = [0, 2, 4, 5, 7, 9, 11];
     const whitePositionsX = [];
@@ -714,7 +714,7 @@ class FlyPiano3DScene {
       const stringHeight = 2.2 - (i * 0.08);
 
       const stringGeo = new THREE.CylinderGeometry(0.018, 0.018, stringHeight, 8);
-      const stringMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.95, roughness: 0.2 });
+      const stringMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.35 });
 
       const stringMesh = new THREE.Mesh(stringGeo, stringMat);
       stringMesh.position.set(stringX, 0.8 + stringHeight / 2, -1.6 - (i * 0.04));
@@ -803,12 +803,12 @@ class FlyPiano3DScene {
     this.brainMeshGroup = new THREE.Group();
     headGroup.add(this.brainMeshGroup);
 
-    // AMMC (Antennal Mechanosensory & Motor Center - Auditory Input): Cyan
+    // AMMC (Antennal Mechanosensory & Motor Center - Auditory Input): Muted Slate Blue
     const ammcMat = new THREE.MeshStandardMaterial({
-      color: 0x06b6d4,
-      emissive: 0x06b6d4,
-      emissiveIntensity: 0.4,
-      roughness: 0.2
+      color: 0x0284c7,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.25,
+      roughness: 0.3
     });
     const ammcGeo = new THREE.SphereGeometry(0.065, 12, 12);
     this.ammcMeshL = new THREE.Mesh(ammcGeo, ammcMat.clone());
@@ -819,24 +819,24 @@ class FlyPiano3DScene {
     this.ammcMeshR.position.set(0.09, -0.02, -0.08);
     this.brainMeshGroup.add(this.ammcMeshR);
 
-    // Central Complex (CX - EB/FB - Octave Coordinate & Master Clock): Amber Gold
+    // Central Complex (CX - EB/FB - Octave Coordinate & Master Clock): Muted Amber
     const cxMat = new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
-      emissive: 0xf59e0b,
-      emissiveIntensity: 0.4,
-      roughness: 0.2
+      color: 0xd97706,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.25,
+      roughness: 0.3
     });
     const cxGeo = new THREE.TorusGeometry(0.055, 0.025, 8, 16);
     this.cxMesh = new THREE.Mesh(cxGeo, cxMat);
     this.cxMesh.position.set(0, 0.04, -0.02);
     this.brainMeshGroup.add(this.cxMesh);
 
-    // Mushroom Body (MB - Kenyon Cells & Memory): Purple / Violet
+    // Mushroom Body (MB - Kenyon Cells & Memory): Muted Violet
     const mbMat = new THREE.MeshStandardMaterial({
-      color: 0xa855f7,
-      emissive: 0xa855f7,
-      emissiveIntensity: 0.4,
-      roughness: 0.2
+      color: 0x7c3aed,
+      emissive: 0x7c3aed,
+      emissiveIntensity: 0.25,
+      roughness: 0.3
     });
     const mbGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.08, 8);
     this.mbMeshL = new THREE.Mesh(mbGeo, mbMat.clone());
@@ -847,12 +847,12 @@ class FlyPiano3DScene {
     this.mbMeshR.position.set(0.07, 0.08, 0.02);
     this.brainMeshGroup.add(this.mbMeshR);
 
-    // Descending Neurons (DNs - Motor command spike to legs): Ruby Red
+    // Descending Neurons (DNs - Motor command spike to legs): Muted Rose
     const dnMat = new THREE.MeshStandardMaterial({
-      color: 0xf43f5e,
-      emissive: 0xf43f5e,
-      emissiveIntensity: 0.4,
-      roughness: 0.2
+      color: 0xe11d48,
+      emissive: 0xe11d48,
+      emissiveIntensity: 0.25,
+      roughness: 0.3
     });
     const dnGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.16, 8);
     dnGeo.rotateX(Math.PI / 2);
@@ -864,11 +864,11 @@ class FlyPiano3DScene {
     const eyeGeo = new THREE.SphereGeometry(0.15, 16, 16);
     eyeGeo.scale(1.2, 1.1, 0.95);
     const eyeMat = new THREE.MeshStandardMaterial({
-      color: 0xd91438,
-      roughness: 0.15,
-      metalness: 0.85,
-      emissive: 0x5a000e,
-      emissiveIntensity: 0.3
+      color: 0x991b1b,
+      roughness: 0.25,
+      metalness: 0.7,
+      emissive: 0x450a0a,
+      emissiveIntensity: 0.2
     });
 
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
@@ -881,8 +881,8 @@ class FlyPiano3DScene {
     rightEye.rotation.y = -0.4;
     headGroup.add(rightEye);
 
-    // Antennae with feathery aristae
-    const antMat = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669 });
+    // Antennae with feathery aristae (Natural chitin)
+    const antMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.2 });
     const antGeo = new THREE.CylinderGeometry(0.010, 0.016, 0.20, 6);
 
     this.leftAntenna = new THREE.Mesh(antGeo, antMat);
@@ -897,7 +897,7 @@ class FlyPiano3DScene {
 
     this.fly.add(headGroup);
 
-    // 4. Wings (Delicate, transparent, iridescent)
+    // 4. Wings (Delicate, transparent, crystal glass)
     const wingShape = new THREE.Shape();
     wingShape.moveTo(0, 0);
     wingShape.bezierCurveTo(0.18, -0.3, 0.38, -1.0, 0.15, -1.7);
@@ -906,11 +906,11 @@ class FlyPiano3DScene {
 
     const wingGeo = new THREE.ShapeGeometry(wingShape);
     const wingMat = new THREE.MeshPhysicalMaterial({
-      color: 0xdcfce7,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.60,
-      roughness: 0.08,
-      transmission: 0.88,
+      opacity: 0.40,
+      roughness: 0.1,
+      transmission: 0.92,
       ior: 1.45,
       side: THREE.DoubleSide
     });
@@ -1049,11 +1049,11 @@ class FlyPiano3DScene {
 
     particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particleMat = new THREE.PointsMaterial({
-      color: 0x06b6d4,
-      size: 0.10,
+      color: 0x94a3b8,
+      size: 0.08,
       transparent: true,
       opacity: 0.0,
-      blending: THREE.AdditiveBlending
+      blending: THREE.NormalBlending
     });
 
     this.particleSystem = new THREE.Points(particleGeo, particleMat);
@@ -1070,16 +1070,16 @@ class FlyPiano3DScene {
     this.flyTargetPos.y = 0.82;
     this.flyTargetPos.z = keyMesh.position.z + 0.36;
 
-    // Physical key compression
+    // Physical key compression with clean subtle active highlight
     keyMesh.position.y = keyMesh.userData.baseY - 0.09;
-    keyMesh.material.emissive = new THREE.Color(keyMesh.userData.isBlack ? 0x06b6d4 : 0x10b981);
-    keyMesh.material.emissiveIntensity = 0.85;
+    keyMesh.material.emissive = new THREE.Color(keyMesh.userData.isBlack ? 0x2563eb : 0x3b82f6);
+    keyMesh.material.emissiveIntensity = 0.5;
 
     // Resonant string vibration
     if (stringMesh) {
       stringMesh.userData.vibrateTimer = 1.0;
-      stringMesh.material.emissive = new THREE.Color(0xfbbf24);
-      stringMesh.material.emissiveIntensity = 1.0;
+      stringMesh.material.emissive = new THREE.Color(0x64748b);
+      stringMesh.material.emissiveIntensity = 0.6;
     }
 
     // Direct leg strike: pick Left or Right Foreleg based on note direction!
@@ -2678,11 +2678,11 @@ class FlyPianoApp {
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Dark cyber-bio background with subtle neural grid
-    ctx.fillStyle = '#060a10';
+    // Clean utilitarian light-mode background with subtle micro-grid
+    ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, w, h);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.05)';
     ctx.lineWidth = 1;
     for (let x = 0; x < w; x += 20) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
@@ -2694,17 +2694,17 @@ class FlyPianoApp {
     const cx = w / 2;
     const cy = h / 2 - 8;
 
-    // 1. Drosophila Brain Outer Capsule Silhouette (Bilateral Hemispheres & Optic Lobes)
+    // 1. Drosophila Brain Capsule Silhouette (Bilateral Hemispheres & Optic Lobes)
     ctx.save();
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = '#f1f5f9';
 
     ctx.beginPath();
     ctx.moveTo(cx - 30, cy - 65);
     ctx.bezierCurveTo(cx - 90, cy - 80, cx - 160, cy - 50, cx - 170, cy);
     ctx.bezierCurveTo(cx - 175, cy + 40, cx - 130, cy + 80, cx - 80, cy + 65);
-    ctx.bezierCurveTo(cx - 50, cy + 85, cx - 20, cy + 90, cx, cy + 70); // Ventral neck opening
+    ctx.bezierCurveTo(cx - 50, cy + 85, cx - 20, cy + 90, cx, cy + 70); // Ventral neck
     ctx.bezierCurveTo(cx + 20, cy + 90, cx + 50, cy + 85, cx + 80, cy + 65);
     ctx.bezierCurveTo(cx + 130, cy + 80, cx + 175, cy + 40, cx + 170, cy);
     ctx.bezierCurveTo(cx + 160, cy - 50, cx + 90, cy - 80, cx + 30, cy - 65);
@@ -2713,7 +2713,7 @@ class FlyPianoApp {
     ctx.stroke();
 
     // Optic Lobes shading (Medulla & Lobula)
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
+    ctx.fillStyle = '#e2e8f0';
     ctx.beginPath();
     ctx.ellipse(cx - 130, cy + 5, 24, 42, -0.2, 0, Math.PI * 2);
     ctx.ellipse(cx + 130, cy + 5, 24, 42, 0.2, 0, Math.PI * 2);
@@ -2727,103 +2727,78 @@ class FlyPianoApp {
     const mbRX = cx + 40, mbRY = cy - 38;
     const dnX = cx, dnY = cy + 65;
 
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([3, 3]);
 
     // AMMC -> Central Complex
-    ctx.strokeStyle = !isRest ? 'rgba(6, 182, 212, 0.65)' : 'rgba(100, 116, 139, 0.3)';
+    ctx.strokeStyle = !isRest ? '#0284c7' : 'rgba(100, 116, 139, 0.3)';
     ctx.beginPath(); ctx.moveTo(ammcLX, ammcLY); ctx.lineTo(ccX, ccY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(ammcRX, ammcRY); ctx.lineTo(ccX, ccY); ctx.stroke();
 
     // Central Complex -> Mushroom Body
-    ctx.strokeStyle = !isRest ? 'rgba(245, 158, 11, 0.65)' : 'rgba(100, 116, 139, 0.3)';
+    ctx.strokeStyle = !isRest ? '#d97706' : 'rgba(100, 116, 139, 0.3)';
     ctx.beginPath(); ctx.moveTo(ccX, ccY); ctx.lineTo(mbLX, mbLY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(ccX, ccY); ctx.lineTo(mbRX, mbRY); ctx.stroke();
 
     // Central Complex & MB -> Descending Neurons
-    ctx.strokeStyle = !isRest ? 'rgba(244, 63, 94, 0.65)' : 'rgba(100, 116, 139, 0.3)';
+    ctx.strokeStyle = !isRest ? '#e11d48' : 'rgba(100, 116, 139, 0.3)';
     ctx.beginPath(); ctx.moveTo(ccX, ccY); ctx.lineTo(dnX, dnY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(mbLX, mbLY); ctx.lineTo(dnX, dnY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(mbRX, mbRY); ctx.lineTo(dnX, dnY); ctx.stroke();
 
     ctx.setLineDash([]); // Reset line dash
 
-    // 3. Neuropil Nodes with Dynamic Glow
+    // 3. Neuropil Nodes (Utilitarian solid indicators with crisp rings)
 
-    // A. AMMC (Cyan: Auditory Mechanosensory & Motor Center)
-    const ammcGlow = !isRest ? Math.min(1.0, 0.4 + force * 0.6) : 0.2;
+    // A. AMMC (Auditory Mechanosensory & Motor Center: Slate Blue)
     [ [ammcLX, ammcLY], [ammcRX, ammcRY] ].forEach(([nx, ny]) => {
-      const grad = ctx.createRadialGradient(nx, ny, 2, nx, ny, 22);
-      grad.addColorStop(0, `rgba(6, 182, 212, ${ammcGlow})`);
-      grad.addColorStop(0.5, `rgba(6, 182, 212, ${ammcGlow * 0.4})`);
-      grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.arc(nx, ny, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = !isRest ? 'rgba(2, 132, 199, 0.15)' : 'rgba(148, 163, 184, 0.1)';
+      ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI * 2); ctx.fill();
 
-      ctx.fillStyle = !isRest ? '#38bdf8' : '#64748b';
-      ctx.beginPath(); ctx.arc(nx, ny, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#06b6d4';
+      ctx.fillStyle = !isRest ? '#0284c7' : '#94a3b8';
+      ctx.beginPath(); ctx.arc(nx, ny, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#0369a1';
+      ctx.lineWidth = 1.2;
       ctx.stroke();
     });
 
-    // B. Central Complex (Amber: Protocerebral Bridge & Ellipsoid Body)
-    const cxGlow = !isRest ? Math.min(1.0, 0.4 + (octave / 7) * 0.6) : 0.2;
-    const cxGrad = ctx.createRadialGradient(ccX, ccY, 3, ccX, ccY, 28);
-    cxGrad.addColorStop(0, `rgba(245, 158, 11, ${cxGlow})`);
-    cxGrad.addColorStop(0.6, `rgba(245, 158, 11, ${cxGlow * 0.4})`);
-    cxGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
-    ctx.fillStyle = cxGrad;
-    ctx.beginPath(); ctx.arc(ccX, ccY, 28, 0, Math.PI * 2); ctx.fill();
+    // B. Central Complex (Central Spatial Index & Clock: Amber)
+    ctx.fillStyle = !isRest ? 'rgba(217, 119, 6, 0.15)' : 'rgba(148, 163, 184, 0.1)';
+    ctx.beginPath(); ctx.arc(ccX, ccY, 18, 0, Math.PI * 2); ctx.fill();
 
-    // Central Complex Ellipsoid Ring
-    ctx.strokeStyle = !isRest ? '#fbbf24' : '#64748b';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(ccX, ccY, 14, 9, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = !isRest ? '#f59e0b' : '#334155';
-    ctx.beginPath(); ctx.arc(ccX, ccY, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = !isRest ? '#d97706' : '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(ccX, ccY, 12, 8, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = !isRest ? '#b45309' : '#64748b';
+    ctx.beginPath(); ctx.arc(ccX, ccY, 4, 0, Math.PI * 2); ctx.fill();
 
-    // C. Mushroom Body (Violet: Kenyon Cells & Calyx)
-    const mbGlow = !isRest ? 0.75 : 0.25;
+    // C. Mushroom Body (Kenyon Cells / Musical Memory: Violet)
     [ [mbLX, mbLY], [mbRX, mbRY] ].forEach(([mx, my]) => {
-      const mbGrad = ctx.createRadialGradient(mx, my, 2, mx, my, 20);
-      mbGrad.addColorStop(0, `rgba(168, 85, 247, ${mbGlow})`);
-      mbGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
-      ctx.fillStyle = mbGrad;
-      ctx.beginPath(); ctx.arc(mx, my, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = !isRest ? 'rgba(124, 58, 237, 0.15)' : 'rgba(148, 163, 184, 0.1)';
+      ctx.beginPath(); ctx.arc(mx, my, 14, 0, Math.PI * 2); ctx.fill();
 
-      // Vertical Lobe / Calyx shape
-      ctx.fillStyle = !isRest ? '#c084fc' : '#475569';
-      ctx.beginPath(); ctx.ellipse(mx, my, 6, 12, mx < cx ? -0.3 : 0.3, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = !isRest ? '#7c3aed' : '#94a3b8';
+      ctx.beginPath(); ctx.ellipse(mx, my, 5, 10, mx < cx ? -0.3 : 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6d28d9'; ctx.lineWidth = 1.2; ctx.stroke();
     });
 
-    // D. Descending Neurons (Red: Motor Command Spike)
-    const dnGlow = !isRest ? Math.min(1.0, 0.4 + force * 0.6) : 0.15;
-    const dnGrad = ctx.createRadialGradient(dnX, dnY, 2, dnX, dnY, 22);
-    dnGrad.addColorStop(0, `rgba(244, 63, 94, ${dnGlow})`);
-    dnGrad.addColorStop(1, 'rgba(244, 63, 94, 0)');
-    ctx.fillStyle = dnGrad;
-    ctx.beginPath(); ctx.arc(dnX, dnY, 22, 0, Math.PI * 2); ctx.fill();
+    // D. Descending Neurons (Motor Command Spikes: Rose / Red)
+    ctx.fillStyle = !isRest ? 'rgba(225, 29, 72, 0.15)' : 'rgba(148, 163, 184, 0.1)';
+    ctx.beginPath(); ctx.arc(dnX, dnY, 15, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = !isRest ? '#f43f5e' : '#475569';
-    ctx.beginPath(); ctx.arc(dnX, dnY, 8, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#fda4af'; ctx.stroke();
+    ctx.fillStyle = !isRest ? '#e11d48' : '#94a3b8';
+    ctx.beginPath(); ctx.arc(dnX, dnY, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#be123c'; ctx.lineWidth = 1.2; ctx.stroke();
 
-    // Labels on Canvas
-    ctx.font = 'bold 9px "JetBrains Mono", monospace';
+    // Labels on Canvas (Crisp Slate-900 JetBrains Mono)
+    ctx.font = '600 9px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
 
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = '#0f172a';
     ctx.fillText('AMMC (Auditory)', cx - 65, cy + 45);
     ctx.fillText('AMMC (Auditory)', cx + 65, cy + 45);
-
-    ctx.fillStyle = '#fbbf24';
     ctx.fillText('CENTRAL COMPLEX', cx, cy - 18);
-
-    ctx.fillStyle = '#c084fc';
     ctx.fillText('MUSHROOM BODY', cx, cy - 54);
-
-    ctx.fillStyle = '#f43f5e';
     ctx.fillText('DESCENDING MOTOR (DN)', cx, cy + 85);
 
     ctx.restore();
@@ -2967,6 +2942,9 @@ class FlyPianoApp {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     const cols = 24;
     const rows = 12;
     const cellW = canvas.width / cols;
@@ -2977,11 +2955,12 @@ class FlyPianoApp {
         const idx = r * cols + c;
         const isFired = (activeKeyIdx >= 0) && ((idx % 88) === activeKeyIdx);
 
-        ctx.fillStyle = isFired ? '#10b981' : (idx % 2 === 0 ? '#131b26' : '#1e293b');
+        ctx.fillStyle = isFired ? '#0f172a' : (idx % 2 === 0 ? '#f1f5f9' : '#e2e8f0');
         ctx.fillRect(c * cellW + 1, r * cellH + 1, cellW - 2, cellH - 2);
 
         if (isFired) {
-          ctx.strokeStyle = '#34d399';
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = 1;
           ctx.strokeRect(c * cellW + 1, r * cellH + 1, cellW - 2, cellH - 2);
         }
       }

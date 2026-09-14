@@ -70,32 +70,32 @@
         <!-- Floating Live Fly Brain Neuropil HUD -->
         <div class="fly-brain-hud" id="fly-brain-hud">
           <div class="brain-hud-title">
-            <span class="pulse-dot" style="background:#06b6d4;"></span>
-            <strong>Fly Brain Live Neuropils</strong>
+            <span class="pulse-dot"></span>
+            <strong>Fly Brain Neuropils</strong>
           </div>
           <div class="neuropil-chips-row">
             <div class="np-chip" id="hud-np-ammc" title="Antennal Mechanosensory & Motor Center (Pitch Audition)">
-              <span class="np-indicator" style="background:#06b6d4;"></span>
+              <span class="np-indicator" style="background:#0284c7;"></span>
               <span class="np-label">AMMC</span>
               <span class="np-val" id="hud-val-ammc">Hearing</span>
             </div>
             <div class="np-chip" id="hud-np-cx" title="Central Complex (Octave Navigation & Clock)">
-              <span class="np-indicator" style="background:#f59e0b;"></span>
+              <span class="np-indicator" style="background:#d97706;"></span>
               <span class="np-label">CX</span>
               <span class="np-val" id="hud-val-cx">Octave</span>
             </div>
             <div class="np-chip" id="hud-np-mb" title="Mushroom Body (Melodic Memory)">
-              <span class="np-indicator" style="background:#a855f7;"></span>
+              <span class="np-indicator" style="background:#7c3aed;"></span>
               <span class="np-label">MB</span>
               <span class="np-val" id="hud-val-mb">Memory</span>
             </div>
             <div class="np-chip" id="hud-np-dn" title="Descending Neurons (Motor Strikes)">
-              <span class="np-indicator" style="background:#f43f5e;"></span>
+              <span class="np-indicator" style="background:#e11d48;"></span>
               <span class="np-label">DN</span>
               <span class="np-val" id="hud-val-dn">Strike</span>
             </div>
             <div class="np-chip" id="hud-np-vnc" title="Ventral Nerve Cord (Leg Proprioception)">
-              <span class="np-indicator" style="background:#84cc16;"></span>
+              <span class="np-indicator" style="background:#10b981;"></span>
               <span class="np-label">VNC</span>
               <span class="np-val" id="hud-val-vnc">Legs</span>
             </div>
@@ -203,38 +203,38 @@
               </div>
             </div>
 
-            <!-- Instant One-Click Workspace Music Loader -->
-            <div class="music-quickload-box" style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-sm);">
-              <div style="font-size: 0.73rem; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
-                ⚡ 1-Click Load from <code>music/</code> folder (Fly Brain Neural Mimicry):
+            <!-- Workspace Music Loader -->
+            <div class="music-quickload-box">
+              <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px;">
+                Workspace Repertoire (Audio & MIDI):
               </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <button class="btn-accent" id="btn-quick-aria-mid" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
-                  🎼 Mimic AriaMath.mid
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <button class="btn-secondary" id="btn-quick-aria-mid">
+                  🎼 AriaMath.mid
                 </button>
-                <button class="btn-secondary" id="btn-quick-aria-mp3" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
-                  🧠 Mimic AriaMath.mp3
+                <button class="btn-secondary" id="btn-quick-aria-mp3">
+                  🎙️ AriaMath.mp3
                 </button>
-                <button class="btn-secondary" id="btn-quick-mario-mid" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
-                  🎮 Mimic Mario64.mid
+                <button class="btn-secondary" id="btn-quick-mario-mid">
+                  🎮 Mario64.mid
                 </button>
-                <button class="btn-secondary" id="btn-quick-bach-mid" style="font-size: 0.72rem; padding: 7px 8px; justify-content: center;">
-                  🎻 Mimic Bach Cello.mid
+                <button class="btn-secondary" id="btn-quick-bach-mid">
+                  🎻 Bach Cello.mid
                 </button>
               </div>
-              <div style="margin-top: 8px;">
-                <button class="btn-secondary" id="btn-load-concert-json" style="width: 100%; font-size: 0.72rem; padding: 6px 8px; justify-content: center;">
-                  📊 Load AI Mimicry Concert Data (concert_data.json)
+              <div style="margin-top: 6px;">
+                <button class="btn-secondary" id="btn-load-concert-json" style="width: 100%; justify-content: center;">
+                  📊 Load Generalization Report (concert_data.json)
                 </button>
               </div>
             </div>
             
-            <div class="audio-options-group" style="margin-top: 8px; display: flex; gap: 8px;">
-              <button class="btn-secondary" id="btn-audio-mode" style="flex: 1; font-size: 0.72rem; padding: 6px 10px;">
-                Performance Engine: <strong id="audio-mode-label" style="color: var(--accent-cyan);">Acoustic Grand Piano Strings (Physical Synthesis)</strong>
+            <div class="audio-options-group" style="margin-top: 6px; display: flex; gap: 6px;">
+              <button class="btn-secondary" id="btn-audio-mode" style="flex: 1;">
+                Performance Engine: <strong id="audio-mode-label" style="color: var(--text-primary); font-family: var(--font-mono);">Acoustic Grand Piano Strings</strong>
               </button>
             </div>
-            <div id="audio-analysis-status" style="margin-top: 8px; font-size: 0.75rem; color: var(--accent-cyan); display: none;"></div>
+            <div id="audio-analysis-status" style="margin-top: 6px; font-size: 11px; font-family: var(--font-mono); color: var(--status-blue); display: none;"></div>
           </div>
 
           <!-- Custom Notes Sequence Converter Input -->
@@ -300,18 +300,18 @@
         <!-- TAB 3: FLY BRAIN CONNECTOME & 88-KEY STUDIO -->
         <div class="tab-content" id="tab-brain">
           <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div class="flex-between mb-2">
               <h3>Drosophila Brain Connectome (FlyWire)</h3>
-              <span class="badge-dynamic" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-color: rgba(6,182,212,0.3);">Live Neuropil Map</span>
+              <span class="badge-dynamic">Live Neuropil Map</span>
             </div>
             <p class="card-desc">Real-time neural activation across functional anatomical brain regions during piano performance:</p>
             
             <!-- Canvas for Interactive Anatomical Fruit Fly Brain Map -->
-            <div class="fly-brain-canvas-wrapper" style="position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-color); background: #070a0f; margin-bottom: 12px;">
-              <canvas id="fly-brain-canvas" width="400" height="230" style="width: 100%; height: 210px; display: block;"></canvas>
-              <div id="brain-activation-callout" style="position: absolute; bottom: 8px; left: 10px; right: 10px; background: rgba(10,14,22,0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center;">
-                <span id="callout-region" style="color: var(--accent-cyan); font-weight: 700;">AMMC (Auditory Ingestion)</span>
-                <span id="callout-details" style="color: var(--text-secondary); font-family: var(--font-mono);">Pitch: F#4 · 370 Hz</span>
+            <div class="fly-brain-canvas-wrapper">
+              <canvas id="fly-brain-canvas" width="400" height="230"></canvas>
+              <div id="brain-activation-callout">
+                <span id="callout-region">AMMC (Auditory Ingestion)</span>
+                <span id="callout-details">Pitch: F#4 · 370 Hz</span>
               </div>
             </div>
 
@@ -319,7 +319,7 @@
             <div class="neuropil-matrix-grid">
               <div class="np-card" id="card-np-ammc">
                 <div class="np-header">
-                  <span class="np-dot" style="background:#06b6d4;"></span>
+                  <span class="np-dot" style="background:#0284c7;"></span>
                   <strong>AMMC</strong>
                   <span class="np-tag">Auditory</span>
                 </div>

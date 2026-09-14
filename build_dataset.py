@@ -133,12 +133,16 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
         force_label = ev.get("velocity", 0.8)
         midi_note = ev.get("midi", None)
 
-        # 1. Obtain audio chunk
+        # 1. Obtain audio chunk at exact tempo-aware timestamp
+        time_sec = ev.get("time_sec", t_idx * 0.15)
+        sample_idx = int(time_sec * sample_rate)
+
         if has_audio and audio is not None:
-            # Approximate time from tick (assuming 16th note ~ 0.15s)
-            est_sample = int(t_idx * 0.15 * sample_rate)
-            if est_sample + window_samples <= len(audio):
-                chunk = audio[est_sample:est_sample + window_samples]
+            if sample_idx + window_samples <= len(audio):
+                chunk = audio[sample_idx:sample_idx + window_samples]
+            elif sample_idx < len(audio):
+                pad_needed = window_samples - (len(audio) - sample_idx)
+                chunk = np.pad(audio[sample_idx:], (0, pad_needed), mode='constant')
             else:
                 chunk = synthesize_acoustic_note(midi_note, duration_sec=0.25, velocity=force_label, sample_rate=sample_rate)
         else:
@@ -171,11 +175,12 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
 
 def build_all_datasets(workspace_dir: str = "."):
     """
-    Builds both training and held-out test datasets and saves to .pt files.
+    Builds both training and held-out test datasets with exact tempo-aware alignment.
     """
     music_dir = os.path.join(workspace_dir, "music")
     print("=" * 78)
     print("🔬 BUILDING CONTINUOUS AUDITORY CONNECTOME DATASET (14-D FEATURES + NOISE)")
+    print("   ⚡ Tempo-aware real-second timestamp synchronization (P0 Fix)")
     print("=" * 78)
 
     # 1. Define Training Set (Aria Math + Chromatic Scales)
@@ -188,7 +193,8 @@ def build_all_datasets(workspace_dir: str = "."):
     presets = compiler.get_preset_ticks()
 
     train_scale_ticks = presets["training_scale"]
-    aria_ticks = presets["aria_math"]
+    # Load tempo-aware Aria Math if MIDI exists, falling back to preset
+    aria_ticks = compiler.load_midi_to_ticks(aria_mid_path) or presets["aria_math"]
 
     print("📊 Generating Training Dataset...")
     # Real audio Aria Math
@@ -211,7 +217,7 @@ def build_all_datasets(workspace_dir: str = "."):
     bach_mid_path = os.path.join(music_dir, "Johann Sebastian Bach - Cello Suite No 1 - Prelude (ver 14 by zoikoikum).mid.mid")
     bach_mp3_path = os.path.join(music_dir, "Johann Sebastian Bach - Cello Suite No 1 - Prelude (ver 14 by zoikoikum).mid.mp3")
 
-    print("\n🎻 Generating Held-Out Unseen Piece (J.S. Bach Prelude)...")
+    print("\n🎻 Generating Held-Out Unseen Piece (J.S. Bach Prelude with Real Tempo Alignment)...")
     bach_ticks = compiler.load_midi_to_ticks(bach_mid_path)
     if not bach_ticks:
         # Fallback to scale if Bach midi not parseable

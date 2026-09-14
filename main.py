@@ -152,6 +152,7 @@ class AdvancedChromaticLogicModule:
     def load_midi_to_ticks(self, filepath: str):
         """
         Loads MIDI with multi-track merging and subdivides into tick clock steps.
+        Accurately tracks tempo meta-events (set_tempo) to calculate exact real-time seconds.
         """
         try:
             import mido
@@ -160,28 +161,56 @@ class AdvancedChromaticLogicModule:
             merged = mido.merge_tracks(mid.tracks)
 
             ticks_per_beat = mid.ticks_per_beat or 480
-            micro_tick_resolution = ticks_per_beat // self.ticks_per_beat
+            micro_tick_resolution = max(1, ticks_per_beat // self.ticks_per_beat)
 
             current_tick = 0
+            current_time_sec = 0.0
+            current_tempo = 500000  # default 120 BPM in microseconds per beat
+
+            # Tempo map for exact continuous tick-to-seconds conversion: [(tick, time_sec, tempo_us)]
+            tempo_map = [(0, 0.0, current_tempo)]
+
             active_notes = {}
             note_events = []
 
             for msg in merged:
-                current_tick += msg.time
+                if msg.time > 0:
+                    delta_sec = mido.tick2second(msg.time, ticks_per_beat, current_tempo)
+                    current_time_sec += delta_sec
+                    current_tick += msg.time
+
+                if msg.type == 'set_tempo':
+                    current_tempo = msg.tempo
+                    tempo_map.append((current_tick, current_time_sec, current_tempo))
+
                 if msg.type == 'note_on' and msg.velocity > 0:
-                    active_notes[msg.note] = (current_tick, msg.velocity)
+                    active_notes[msg.note] = (current_tick, current_time_sec, msg.velocity)
                 elif msg.type in ('note_off', 'note_on') and getattr(msg, 'velocity', 0) == 0:
                     if msg.note in active_notes:
-                        start_t, vel = active_notes.pop(msg.note)
+                        start_t, start_s, vel = active_notes.pop(msg.note)
                         note_events.append({
                             "note": msg.note,
                             "start_tick": start_t,
                             "end_tick": current_tick,
+                            "start_time_sec": start_s,
+                            "end_time_sec": current_time_sec,
+                            "dur_sec": max(0.02, current_time_sec - start_s),
                             "vel": vel
                         })
 
             if not note_events:
                 return None
+
+            def tick_to_sec(target_tick: int) -> float:
+                seg = tempo_map[0]
+                for s in tempo_map:
+                    if s[0] <= target_tick:
+                        seg = s
+                    else:
+                        break
+                seg_tick, seg_time, seg_tempo = seg
+                delta_ticks = target_tick - seg_tick
+                return seg_time + mido.tick2second(delta_ticks, ticks_per_beat, seg_tempo)
 
             note_events.sort(key=lambda x: x["start_tick"])
             total_time_ticks = max(ev["end_tick"] for ev in note_events)
@@ -191,6 +220,9 @@ class AdvancedChromaticLogicModule:
             for t in range(num_micro_ticks):
                 tick_start = t * micro_tick_resolution
                 tick_end = (t + 1) * micro_tick_resolution
+                start_sec = tick_to_sec(tick_start)
+                end_sec = tick_to_sec(tick_end)
+                dur_sec = max(0.02, end_sec - start_sec)
 
                 sounding = [
                     ev for ev in note_events 
@@ -203,6 +235,8 @@ class AdvancedChromaticLogicModule:
                     p, o, v, is_r = self.midi_to_components(lead_note["note"], lead_note["vel"])
                     ticks.append({
                         "tick": t + 1,
+                        "time_sec": round(start_sec, 4),
+                        "dur_sec": round(dur_sec, 4),
                         "pitch": p,
                         "octave": o,
                         "velocity": v,
@@ -213,6 +247,8 @@ class AdvancedChromaticLogicModule:
                 else:
                     ticks.append({
                         "tick": t + 1,
+                        "time_sec": round(start_sec, 4),
+                        "dur_sec": round(dur_sec, 4),
                         "pitch": 12,
                         "octave": 3,
                         "velocity": 0.0,
@@ -221,7 +257,7 @@ class AdvancedChromaticLogicModule:
                         "is_rest": True
                     })
 
-            print(f"✅ Extracted {len(ticks)} sequential clock ticks (with Rest tokens).")
+            print(f"✅ Extracted {len(ticks)} sequential clock ticks with real timestamps (0.0s to {ticks[-1]['time_sec']:.2f}s).")
             return ticks
         except Exception as e:
             print(f"⚠️ Could not load MIDI ticks '{filepath}': {e}")
@@ -240,6 +276,8 @@ class AdvancedChromaticLogicModule:
                 p, o, v, _ = self.midi_to_components(midi, 80 + (semitone * 3))
                 train_ticks.append({
                     "tick": tick_counter,
+                    "time_sec": round((tick_counter - 1) * 0.25, 4),
+                    "dur_sec": 0.25,
                     "pitch": p,
                     "octave": o,
                     "velocity": v,
@@ -251,6 +289,8 @@ class AdvancedChromaticLogicModule:
             # Rest tick between octaves
             train_ticks.append({
                 "tick": tick_counter,
+                "time_sec": round((tick_counter - 1) * 0.25, 4),
+                "dur_sec": 0.25,
                 "pitch": 12,
                 "octave": oct_i,
                 "velocity": 0.0,
@@ -282,6 +322,8 @@ class AdvancedChromaticLogicModule:
             for _ in range(num_subticks):
                 aria_ticks.append({
                     "tick": t_idx,
+                    "time_sec": round((t_idx - 1) * 0.15, 4),
+                    "dur_sec": 0.15,
                     "pitch": p,
                     "octave": o,
                     "velocity": v,
