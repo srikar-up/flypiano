@@ -1719,24 +1719,88 @@ class FlyPianoApp {
   }
 
   detectPitchAutocorrelation(buffer, offset, size, sampleRate) {
-    let bestCorrelation = 0;
-    let bestPeriod = -1;
+    // Piano fundamental frequencies span from A0 (27.5 Hz) to C8 (4186 Hz)
+    const minPeriod = Math.max(4, Math.floor(sampleRate / 4200));
+    const maxPeriod = Math.min(Math.floor(sampleRate / 27.5), Math.floor(size / 2));
+    const halfSize = Math.floor(size / 2);
 
-    const minPeriod = Math.floor(sampleRate / 2000);
-    const maxPeriod = Math.floor(sampleRate / 60);
+    // 1. Hann Windowing to eliminate spectral leakage & boundary discontinuities
+    const windowed = new Float32Array(size);
+    for (let i = 0; i < size; i++) {
+      const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (size - 1)));
+      windowed[i] = buffer[offset + i] * w;
+    }
 
-    for (let period = minPeriod; period < maxPeriod; period++) {
-      let correlation = 0;
-      for (let i = 0; i < size - maxPeriod; i += 4) {
-        correlation += buffer[offset + i] * buffer[offset + i + period];
+    // 2. Squared Difference Function d(tau)
+    const diff = new Float32Array(maxPeriod + 1);
+    for (let tau = minPeriod; tau <= maxPeriod; tau++) {
+      let sum = 0;
+      for (let i = 0; i < halfSize; i++) {
+        const delta = windowed[i] - windowed[i + tau];
+        sum += delta * delta;
       }
-      if (correlation > bestCorrelation) {
-        bestCorrelation = correlation;
-        bestPeriod = period;
+      diff[tau] = sum;
+    }
+
+    // 3. Cumulative Mean Normalized Difference Function (CMNDF)
+    const cmndf = new Float32Array(maxPeriod + 1);
+    cmndf[0] = 1;
+    let runningSum = 0;
+    for (let tau = 1; tau <= maxPeriod; tau++) {
+      runningSum += diff[tau];
+      if (tau < minPeriod) {
+        cmndf[tau] = 1;
+      } else {
+        cmndf[tau] = runningSum > 0 ? (diff[tau] * tau) / runningSum : 1;
       }
     }
 
-    return bestPeriod > 0 ? (sampleRate / bestPeriod) : 0;
+    // 4. Absolute Threshold (YIN first dip detection to avoid octave/subharmonic errors)
+    const threshold = 0.15;
+    let chosenPeriod = -1;
+
+    for (let tau = minPeriod; tau <= maxPeriod; tau++) {
+      if (cmndf[tau] < threshold) {
+        // Walk forward to reach local valley trough
+        while (tau + 1 <= maxPeriod && cmndf[tau + 1] < cmndf[tau]) {
+          tau++;
+        }
+        chosenPeriod = tau;
+        break;
+      }
+    }
+
+    // Fallback: If no candidate dipped below threshold, find global minimum
+    if (chosenPeriod === -1) {
+      let minVal = Infinity;
+      for (let tau = minPeriod; tau <= maxPeriod; tau++) {
+        if (cmndf[tau] < minVal) {
+          minVal = cmndf[tau];
+          chosenPeriod = tau;
+        }
+      }
+      // If minimum dip is too weak (> 0.45), signal is considered unvoiced / noise
+      if (minVal > 0.45) {
+        return 0;
+      }
+    }
+
+    // 5. Parabolic Interpolation for continuous sub-sample period accuracy
+    let refinedPeriod = chosenPeriod;
+    if (chosenPeriod > minPeriod && chosenPeriod < maxPeriod) {
+      const s0 = cmndf[chosenPeriod - 1];
+      const s1 = cmndf[chosenPeriod];
+      const s2 = cmndf[chosenPeriod + 1];
+      const denom = 2 * (s0 - 2 * s1 + s2);
+      if (Math.abs(denom) > 1e-6) {
+        const delta = (s0 - s2) / denom;
+        if (Math.abs(delta) < 1) {
+          refinedPeriod = chosenPeriod + delta;
+        }
+      }
+    }
+
+    return refinedPeriod > 0 ? (sampleRate / refinedPeriod) : 0;
   }
 
   extractNotesFromMIDI(bytes) {
