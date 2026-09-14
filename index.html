@@ -28,14 +28,15 @@
           <span>RTX 4060 · CUDA Active</span>
         </div>
         <div class="chip chip-info" id="chip-connectome">
-          <span>🧠 Multi-Task Connectome (Pitch · Octave · Force)</span>
+          <span>🧠 14-D Continuous Connectome (Pitch · Octave · Force)</span>
         </div>
         <div class="chip chip-accent" id="chip-accuracy">
           <span>🎯 Mimicry Score: 98.6%</span>
         </div>
-      <div class="piano-mode-selector">
-        <button class="mode-btn" data-mode="12" id="mode-12">12 Keys</button>
-        <button class="mode-btn active" data-mode="88" id="mode-88">88-Key Grand Piano</button>
+        <div class="piano-mode-badge" id="piano-grand-badge">
+          <span class="pulse-dot"></span>
+          <span>🎹 88-Key Concert Grand (A0 – C8)</span>
+        </div>
       </div>
 
       <div class="view-controls">
@@ -58,11 +59,46 @@
         <div class="viewport-overlay-top">
           <div class="song-badge" id="current-song-badge">
             <span class="badge-icon">🎼</span>
-            <span class="badge-text" id="active-track-name">Für Elise (Beethoven)</span>
+            <span class="badge-text" id="active-track-name">Aria Math (C418)</span>
           </div>
           <div class="beat-badge" id="beat-counter-badge">
-            <span>Beat: </span>
-            <strong id="current-beat-display">0 / 9</strong>
+            <span>Tick: </span>
+            <strong id="current-beat-display">1 / 48</strong>
+          </div>
+        </div>
+
+        <!-- Floating Live Fly Brain Neuropil HUD -->
+        <div class="fly-brain-hud" id="fly-brain-hud">
+          <div class="brain-hud-title">
+            <span class="pulse-dot" style="background:#06b6d4;"></span>
+            <strong>Fly Brain Live Neuropils</strong>
+          </div>
+          <div class="neuropil-chips-row">
+            <div class="np-chip" id="hud-np-ammc" title="Antennal Mechanosensory & Motor Center (Pitch Audition)">
+              <span class="np-indicator" style="background:#06b6d4;"></span>
+              <span class="np-label">AMMC</span>
+              <span class="np-val" id="hud-val-ammc">Hearing</span>
+            </div>
+            <div class="np-chip" id="hud-np-cx" title="Central Complex (Octave Navigation & Clock)">
+              <span class="np-indicator" style="background:#f59e0b;"></span>
+              <span class="np-label">CX</span>
+              <span class="np-val" id="hud-val-cx">Octave</span>
+            </div>
+            <div class="np-chip" id="hud-np-mb" title="Mushroom Body (Melodic Memory)">
+              <span class="np-indicator" style="background:#a855f7;"></span>
+              <span class="np-label">MB</span>
+              <span class="np-val" id="hud-val-mb">Memory</span>
+            </div>
+            <div class="np-chip" id="hud-np-dn" title="Descending Neurons (Motor Strikes)">
+              <span class="np-indicator" style="background:#f43f5e;"></span>
+              <span class="np-label">DN</span>
+              <span class="np-val" id="hud-val-dn">Strike</span>
+            </div>
+            <div class="np-chip" id="hud-np-vnc" title="Ventral Nerve Cord (Leg Proprioception)">
+              <span class="np-indicator" style="background:#84cc16;"></span>
+              <span class="np-label">VNC</span>
+              <span class="np-val" id="hud-val-vnc">Legs</span>
+            </div>
           </div>
         </div>
 
@@ -116,14 +152,14 @@
         <div class="sidebar-tabs">
           <button class="tab-btn active" data-tab="tab-converter">🎵 Music Converter</button>
           <button class="tab-btn" data-tab="tab-connectome">🧠 Connectome HUD</button>
-          <button class="tab-btn" data-tab="tab-keyboard">🎹 12-Key Studio</button>
+          <button class="tab-btn" data-tab="tab-brain">🔬 Fly Brain 3D Model</button>
         </div>
 
         <!-- TAB 1: MUSIC CONVERTER -->
         <div class="tab-content active" id="tab-converter">
           <div class="card">
             <h3>Preset Repertoire (Zero-Shot AI)</h3>
-            <p class="card-desc">Select songs to test the fly's learned musical generalization:</p>
+            <p class="card-desc">Select songs to test the fly's learned musical generalization on the 88-key piano:</p>
             <div class="preset-grid">
               <button class="preset-btn active" data-preset="aria_math">
                 <div class="preset-title">Aria Math (C418)</div>
@@ -141,9 +177,9 @@
                 <div class="preset-title">Ode to Joy</div>
                 <div class="preset-sub">Beethoven · D Major</div>
               </button>
-              <button class="preset-btn" data-preset="chromatic_12_scale">
-                <div class="preset-title">Chromatic 12 Scale</div>
-                <div class="preset-sub">All 12 Tones (Gym Training)</div>
+              <button class="preset-btn" data-preset="bach_prelude">
+                <div class="preset-title">Bach Cello Suite No. 1</div>
+                <div class="preset-sub">J.S. Bach · Prelude in G</div>
               </button>
               <button class="preset-btn" data-preset="grand_88_scale">
                 <div class="preset-title">Grand 88-Key Sweep</div>
@@ -163,7 +199,7 @@
               <div class="dropzone-inner">
                 <span class="drop-icon">🎵</span>
                 <p><strong>Click to Open or Drop any MIDI / MP3 file</strong></p>
-                <span class="drop-sub">Full multi-track MIDI & audio parser with true tempo, octaves, dynamics & rests</span>
+                <span class="drop-sub">Continuous 14-D YIN+Chroma features with genuine Fly Connectome neural inference</span>
               </div>
             </div>
 
@@ -261,23 +297,84 @@
           </div>
         </div>
 
-        <!-- TAB 3: 12-KEY STUDIO & VIRTUAL KEYBOARD -->
-        <div class="tab-content" id="tab-keyboard">
+        <!-- TAB 3: FLY BRAIN CONNECTOME & 88-KEY STUDIO -->
+        <div class="tab-content" id="tab-brain">
           <div class="card">
-            <h3>Interactive 12-Tone Piano Studio</h3>
-            <p class="card-desc">Click any key to audition the acoustic piano synthesizer and watch the fly react:</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h3>Drosophila Brain Connectome (FlyWire)</h3>
+              <span class="badge-dynamic" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-color: rgba(6,182,212,0.3);">Live Neuropil Map</span>
+            </div>
+            <p class="card-desc">Real-time neural activation across functional anatomical brain regions during piano performance:</p>
+            
+            <!-- Canvas for Interactive Anatomical Fruit Fly Brain Map -->
+            <div class="fly-brain-canvas-wrapper" style="position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-color); background: #070a0f; margin-bottom: 12px;">
+              <canvas id="fly-brain-canvas" width="400" height="230" style="width: 100%; height: 210px; display: block;"></canvas>
+              <div id="brain-activation-callout" style="position: absolute; bottom: 8px; left: 10px; right: 10px; background: rgba(10,14,22,0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center;">
+                <span id="callout-region" style="color: var(--accent-cyan); font-weight: 700;">AMMC (Auditory Ingestion)</span>
+                <span id="callout-details" style="color: var(--text-secondary); font-family: var(--font-mono);">Pitch: F#4 · 370 Hz</span>
+              </div>
+            </div>
+
+            <!-- Neuropil Functional Matrix -->
+            <div class="neuropil-matrix-grid">
+              <div class="np-card" id="card-np-ammc">
+                <div class="np-header">
+                  <span class="np-dot" style="background:#06b6d4;"></span>
+                  <strong>AMMC</strong>
+                  <span class="np-tag">Auditory</span>
+                </div>
+                <div class="np-body">Antennal Mechanosensory & Motor Center. Decodes chromatic pitch vibrations (C to B).</div>
+                <div class="np-status" id="status-np-ammc">Awaiting Audio</div>
+              </div>
+
+              <div class="np-card" id="card-np-cx">
+                <div class="np-header">
+                  <span class="np-dot" style="background:#f59e0b;"></span>
+                  <strong>CX</strong>
+                  <span class="np-tag">Spatial/Clock</span>
+                </div>
+                <div class="np-body">Central Complex (PB/EB/FB). Rhythmic 16th-tick clock & 88-key octave space indexing.</div>
+                <div class="np-status" id="status-np-cx">Octave 4 Target</div>
+              </div>
+
+              <div class="np-card" id="card-np-mb">
+                <div class="np-header">
+                  <span class="np-dot" style="background:#a855f7;"></span>
+                  <strong>MB</strong>
+                  <span class="np-tag">Memory</span>
+                </div>
+                <div class="np-body">Mushroom Body (Kenyon Cells). Recalls learned melodic phrases & anticipates motifs.</div>
+                <div class="np-status" id="status-np-mb">Aria Math Motifs</div>
+              </div>
+
+              <div class="np-card" id="card-np-dn">
+                <div class="np-header">
+                  <span class="np-dot" style="background:#f43f5e;"></span>
+                  <strong>DNs</strong>
+                  <span class="np-tag">Motor Trigger</span>
+                </div>
+                <div class="np-body">Descending Neurons. Transmits action potential spikes down the neck to strike keys.</div>
+                <div class="np-status" id="status-np-dn">Strike Velocity 0.75</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive 88-Key Studio Ribbon -->
+          <div class="card">
+            <h3>Interactive 88-Key Grand Piano Ribbon</h3>
+            <p class="card-desc">Click any key across the full 88-key concert range to activate the fly's brain & physical strings:</p>
             
             <div class="piano-keyboard-wrapper">
-              <div class="piano-keyboard" id="interactive-piano">
+              <div class="piano-keyboard mode-88" id="interactive-piano">
                 <!-- White & Black keys generated by app.js -->
               </div>
             </div>
 
             <div class="key-info-box" id="key-info-box">
-              <div class="info-row"><span>Canonical Note:</span> <strong id="info-note-name">C4</strong></div>
-              <div class="info-row"><span>Channel Index:</span> <strong id="info-channel">0</strong></div>
+              <div class="info-row"><span>Targeted Key:</span> <strong id="info-note-name">C4 (Middle C)</strong></div>
+              <div class="info-row"><span>Piano Register:</span> <strong id="info-channel">Key 39 · Octave 4</strong></div>
               <div class="info-row"><span>Fundamental Frequency:</span> <strong id="info-freq">261.63 Hz</strong></div>
-              <div class="info-row"><span>Assigned Fly Actuator:</span> <strong id="info-leg">Left Foreleg (Tarsus L1)</strong></div>
+              <div class="info-row"><span>Neural Firing Pathway:</span> <strong id="info-leg" style="color: var(--accent-cyan);">AMMC → CX (Oct 4) → DN → Foreleg Tarsus</strong></div>
             </div>
           </div>
         </div>
@@ -291,7 +388,7 @@
         <span>Bio-Inspired Neural Robotics · FlyGym 2.0 & PyTorch Connectome Architecture</span>
       </div>
       <div class="footer-right">
-        <span>Fruit Fly Digital Twin: <em>Drosophila melanogaster</em> (12-String Resonant Grand Piano)</span>
+        <span>Fruit Fly Digital Twin: <em>Drosophila melanogaster</em> (88-Key Resonant Concert Grand Piano)</span>
       </div>
     </footer>
   </div>
