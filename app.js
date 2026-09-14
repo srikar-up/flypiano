@@ -482,7 +482,7 @@ class FlyPiano3DScene {
     this.strings = [];
     this.fly = null;
 
-    this.flyTargetPos = new THREE.Vector3(0, 1.8, 0);
+    this.flyTargetPos = new THREE.Vector3(0, 1.18, 0.46);
 
     this.init();
   }
@@ -518,6 +518,7 @@ class FlyPiano3DScene {
 
     this.buildFruitFly();
     this.setupParticles();
+    this.setupClickRings();
 
     window.addEventListener('resize', () => this.onWindowResize());
     this.animate();
@@ -751,10 +752,10 @@ class FlyPiano3DScene {
     scutellum.position.set(0, 0.22, 0.22);
     this.fly.add(scutellum);
 
-    // 2. Abdomen with segmented tergite stripes
+    // 2. Abdomen with segmented tergite stripes (Elevated posture above keybed)
     const abdomenGroup = new THREE.Group();
-    abdomenGroup.position.set(0, 0.04, 0.65); // Abdomen trails behind (+Z)
-    abdomenGroup.rotation.x = 0.12;
+    abdomenGroup.position.set(0, 0.08, 0.62); // Abdomen trails behind (+Z), elevated above keybed
+    abdomenGroup.rotation.x = -0.12; // Anatomical upward posture away from keys
 
     const abdGeo = new THREE.SphereGeometry(0.38, 18, 18);
     abdGeo.scale(0.82, 0.80, 1.6);
@@ -947,58 +948,162 @@ class FlyPiano3DScene {
     this.fly.add(rightHaltere);
 
     // =========================================================================
-    // 5. ARTICULATED 6 LEGS (Grounded on the Piano Keybed)
+    // 5. ARTICULATED 6 INSECT LEGS (High-Knee Stance Grounded on Piano Keybed)
     // =========================================================================
     this.legs = [];
+
+    // Distinct Chitin Finishes for biological realism and high visual contrast
+    const legMat = new THREE.MeshStandardMaterial({
+      color: 0x4a2c17,
+      metalness: 0.65,
+      roughness: 0.32
+    });
+    const jointMat = new THREE.MeshStandardMaterial({
+      color: 0x784421,
+      metalness: 0.70,
+      roughness: 0.25
+    });
+    const padMat = new THREE.MeshStandardMaterial({
+      color: 0xa16207,
+      metalness: 0.45,
+      roughness: 0.40
+    });
+
     const legConfigs = [
-      // Forelegs (L1, R1): Angle forward towards keys to strike!
-      { name: "L1", rootPos: [-0.22, -0.08, -0.20], femurRot: [0.35, 0.3, -0.55], tibiaRot: [-0.5, 0, 0.3], isForeleg: true, isLeft: true },
-      { name: "R1", rootPos: [0.22, -0.08, -0.20], femurRot: [0.35, -0.3, 0.55], tibiaRot: [-0.5, 0, -0.3], isForeleg: true, isLeft: false },
-      // Middle legs (L2, R2): Lateral support
-      { name: "L2", rootPos: [-0.26, -0.10, 0.05], femurRot: [0.0, 0.0, -0.75], tibiaRot: [0.0, 0, 0.5], isForeleg: false, isLeft: true },
-      { name: "R2", rootPos: [0.26, -0.10, 0.05], femurRot: [0.0, 0.0, 0.75], tibiaRot: [0.0, 0, -0.5], isForeleg: false, isLeft: false },
-      // Hind legs (L3, R3): Extend backwards for balance
-      { name: "L3", rootPos: [-0.22, -0.12, 0.30], femurRot: [-0.4, -0.2, -0.65], tibiaRot: [0.4, 0, 0.4], isForeleg: false, isLeft: true },
-      { name: "R3", rootPos: [0.22, -0.12, 0.30], femurRot: [-0.4, 0.2, 0.65], tibiaRot: [0.4, 0, -0.4], isForeleg: false, isLeft: false }
+      // Forelegs (L1, R1): High knees, reach forward over the piano keys ready to strike/click
+      {
+        name: "L1",
+        rootPos: [-0.20, -0.06, -0.20],
+        femurRot: [-0.18, -0.30, -1.50],
+        tibiaRot: [0.82, 0.0, 0.92],
+        tarsusRot: [0.32, 0.0, 0.15],
+        femurLen: 0.38,
+        tibiaLen: 0.42,
+        tarsusLen: 0.14,
+        isForeleg: true,
+        isLeft: true
+      },
+      {
+        name: "R1",
+        rootPos: [0.20, -0.06, -0.20],
+        femurRot: [-0.18, 0.30, 1.50],
+        tibiaRot: [0.82, 0.0, -0.92],
+        tarsusRot: [0.32, 0.0, -0.15],
+        femurLen: 0.38,
+        tibiaLen: 0.42,
+        tarsusLen: 0.14,
+        isForeleg: true,
+        isLeft: false
+      },
+      // Middle legs (L2, R2): Wide lateral tripod support with high arch
+      {
+        name: "L2",
+        rootPos: [-0.24, -0.08, 0.05],
+        femurRot: [0.12, 0.22, -1.62],
+        tibiaRot: [-0.10, 0.0, 1.70],
+        tarsusRot: [0.20, 0.0, 0.10],
+        femurLen: 0.40,
+        tibiaLen: 0.44,
+        tarsusLen: 0.12,
+        isForeleg: false,
+        isLeft: true
+      },
+      {
+        name: "R2",
+        rootPos: [0.24, -0.08, 0.05],
+        femurRot: [0.12, -0.22, 1.62],
+        tibiaRot: [-0.10, 0.0, -1.70],
+        tarsusRot: [0.20, 0.0, -0.10],
+        femurLen: 0.40,
+        tibiaLen: 0.44,
+        tarsusLen: 0.12,
+        isForeleg: false,
+        isLeft: false
+      },
+      // Hind legs (L3, R3): Extend backwards to frame the abdomen and elevate it
+      {
+        name: "L3",
+        rootPos: [-0.20, -0.10, 0.28],
+        femurRot: [0.45, 0.20, -1.58],
+        tibiaRot: [-0.20, 0.0, 1.35],
+        tarsusRot: [-0.20, 0.0, 0.10],
+        femurLen: 0.44,
+        tibiaLen: 0.46,
+        tarsusLen: 0.14,
+        isForeleg: false,
+        isLeft: true
+      },
+      {
+        name: "R3",
+        rootPos: [0.20, -0.10, 0.28],
+        femurRot: [0.45, -0.20, 1.58],
+        tibiaRot: [-0.20, 0.0, -1.35],
+        tarsusRot: [-0.20, 0.0, -0.10],
+        femurLen: 0.44,
+        tibiaLen: 0.46,
+        tarsusLen: 0.14,
+        isForeleg: false,
+        isLeft: false
+      }
     ];
 
     legConfigs.forEach(cfg => {
       const legRoot = new THREE.Group();
       legRoot.position.set(...cfg.rootPos);
 
-      // Coxa
-      const coxaGeo = new THREE.SphereGeometry(0.04, 8, 8);
-      const coxa = new THREE.Mesh(coxaGeo, cuticleMat);
+      // Coxa (Basal joint)
+      const coxaGeo = new THREE.SphereGeometry(0.052, 10, 10);
+      const coxa = new THREE.Mesh(coxaGeo, jointMat);
       legRoot.add(coxa);
 
       // Femur (Upper leg)
       const femurGroup = new THREE.Group();
-      const femurLen = cfg.isForeleg ? 0.30 : 0.34;
-      const femurGeo = new THREE.CylinderGeometry(0.022, 0.016, femurLen, 6);
+      const femurLen = cfg.femurLen;
+      const femurGeo = new THREE.CylinderGeometry(0.030, 0.022, femurLen, 8);
       femurGeo.translate(0, -femurLen / 2, 0);
-      const femur = new THREE.Mesh(femurGeo, cuticleMat);
+      const femur = new THREE.Mesh(femurGeo, legMat);
       femur.castShadow = true;
       femurGroup.add(femur);
       femurGroup.rotation.set(...cfg.femurRot);
       legRoot.add(femurGroup);
 
+      // Knee joint condyle (Visible articulated insect knee)
+      const kneeGeo = new THREE.SphereGeometry(0.034, 10, 10);
+      const kneeMesh = new THREE.Mesh(kneeGeo, jointMat);
+      kneeMesh.position.set(0, -femurLen, 0);
+      femurGroup.add(kneeMesh);
+
       // Tibia (Lower leg)
       const tibiaGroup = new THREE.Group();
       tibiaGroup.position.set(0, -femurLen, 0);
-      const tibiaLen = cfg.isForeleg ? 0.32 : 0.36;
-      const tibiaGeo = new THREE.CylinderGeometry(0.016, 0.010, tibiaLen, 6);
+      const tibiaLen = cfg.tibiaLen;
+      const tibiaGeo = new THREE.CylinderGeometry(0.022, 0.014, tibiaLen, 8);
       tibiaGeo.translate(0, -tibiaLen / 2, 0);
-      const tibia = new THREE.Mesh(tibiaGeo, cuticleMat);
+      const tibia = new THREE.Mesh(tibiaGeo, legMat);
       tibia.castShadow = true;
       tibiaGroup.add(tibia);
       tibiaGroup.rotation.set(...cfg.tibiaRot);
       femurGroup.add(tibiaGroup);
 
-      // Tarsus (Foot resting on key)
-      const tarsusGeo = new THREE.SphereGeometry(0.018, 6, 6);
-      const tarsus = new THREE.Mesh(tarsusGeo, cuticleMat);
-      tarsus.position.set(0, -tibiaLen, 0);
-      tibiaGroup.add(tarsus);
+      // Tarsus (Foot segment & pulvilli pad resting on key)
+      const tarsusGroup = new THREE.Group();
+      tarsusGroup.position.set(0, -tibiaLen, 0);
+      const tarsusLen = cfg.tarsusLen;
+      const tarsusGeo = new THREE.CylinderGeometry(0.014, 0.010, tarsusLen, 6);
+      tarsusGeo.translate(0, -tarsusLen / 2, 0);
+      const tarsusMesh = new THREE.Mesh(tarsusGeo, legMat);
+      tarsusMesh.castShadow = true;
+      tarsusGroup.add(tarsusMesh);
+
+      // Footpad (Pulvillus / Claws)
+      const padGeo = new THREE.SphereGeometry(0.024, 8, 8);
+      padGeo.scale(1.1, 0.6, 1.3);
+      const pad = new THREE.Mesh(padGeo, padMat);
+      pad.position.set(0, -tarsusLen, 0);
+      tarsusGroup.add(pad);
+
+      tarsusGroup.rotation.set(...cfg.tarsusRot);
+      tibiaGroup.add(tarsusGroup);
 
       legRoot.userData = {
         name: cfg.name,
@@ -1007,18 +1112,21 @@ class FlyPiano3DScene {
         basePosY: cfg.rootPos[1],
         femurGroup,
         tibiaGroup,
+        tarsusGroup,
         baseFemurRot: [...cfg.femurRot],
         baseTibiaRot: [...cfg.tibiaRot],
-        strikeTimer: 0
+        baseTarsusRot: [...cfg.tarsusRot],
+        strikeTimer: 0,
+        strikeForce: 0.85
       };
 
       this.fly.add(legRoot);
       this.legs.push(legRoot);
     });
 
-    // Resting Grounded Pose on 88-Key Piano
-    this.fly.position.set(0, 0.82, 0.42);
-    this.flyTargetPos.set(0, 0.82, 0.42);
+    // Resting Grounded Pose on Piano (Elevated body clears keys cleanly!)
+    this.fly.position.set(0, 1.18, 0.46);
+    this.flyTargetPos.set(0, 1.18, 0.46);
     this.scene.add(this.fly);
   }
 
@@ -1049,8 +1157,8 @@ class FlyPiano3DScene {
 
     particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particleMat = new THREE.PointsMaterial({
-      color: 0x94a3b8,
-      size: 0.08,
+      color: 0x93c5fd,
+      size: 0.09,
       transparent: true,
       opacity: 0.0,
       blending: THREE.NormalBlending
@@ -1060,20 +1168,51 @@ class FlyPiano3DScene {
     this.scene.add(this.particleSystem);
   }
 
+  setupClickRings() {
+    this.clickRings = [];
+    const ringGeo = new THREE.RingGeometry(0.03, 0.09, 24);
+    ringGeo.rotateX(-Math.PI / 2); // Lay flat on key surface
+    for (let i = 0; i < 8; i++) {
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.0,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.visible = false;
+      ring.userData = { life: 0 };
+      this.scene.add(ring);
+      this.clickRings.push(ring);
+    }
+  }
+
+  triggerClickRing(x, y, z, isBlack = false) {
+    if (!this.clickRings) return;
+    const ring = this.clickRings.find(r => r.userData.life <= 0) || this.clickRings[0];
+    ring.position.set(x, y + 0.008, z);
+    ring.scale.set(0.4, 0.4, 0.4);
+    ring.material.color.set(isBlack ? 0x60a5fa : 0x38bdf8);
+    ring.material.opacity = 0.9;
+    ring.visible = true;
+    ring.userData.life = 1.0;
+  }
+
   strikeKey(pitchIdx, force = 0.85) {
     const keyMesh = this.keys[pitchIdx];
     const stringMesh = this.strings[pitchIdx];
     if (!keyMesh) return;
 
-    // Grounded target position right at the key surface
+    // Elevated fly target position hovering proudly above the key
     this.flyTargetPos.x = keyMesh.position.x;
-    this.flyTargetPos.y = 0.82;
-    this.flyTargetPos.z = keyMesh.position.z + 0.36;
+    this.flyTargetPos.y = keyMesh.userData.isBlack ? 1.28 : 1.18;
+    this.flyTargetPos.z = keyMesh.position.z + 0.38;
 
     // Physical key compression with clean subtle active highlight
     keyMesh.position.y = keyMesh.userData.baseY - 0.09;
     keyMesh.material.emissive = new THREE.Color(keyMesh.userData.isBlack ? 0x2563eb : 0x3b82f6);
-    keyMesh.material.emissiveIntensity = 0.5;
+    keyMesh.material.emissiveIntensity = 0.55;
 
     // Resonant string vibration
     if (stringMesh) {
@@ -1083,13 +1222,24 @@ class FlyPiano3DScene {
     }
 
     // Direct leg strike: pick Left or Right Foreleg based on note direction!
-    const strikeLeft = keyMesh.position.x < this.fly.position.x;
+    const dx = keyMesh.position.x - this.fly.position.x;
+    let strikeLeft;
+    if (Math.abs(dx) > 0.04) {
+      strikeLeft = dx < 0;
+    } else {
+      // Alternate forelegs for consecutive notes directly centered in front of the fly!
+      this.lastStrikeLegLeft = !this.lastStrikeLegLeft;
+      strikeLeft = this.lastStrikeLegLeft;
+    }
+
     this.legs.forEach(leg => {
       if (leg.userData.isForeleg) {
         if ((strikeLeft && leg.userData.isLeft) || (!strikeLeft && !leg.userData.isLeft)) {
           leg.userData.strikeTimer = 1.0;
+          leg.userData.strikeForce = force;
         } else {
           leg.userData.strikeTimer = 0.35; // Sympathetic posture shift
+          leg.userData.strikeForce = force * 0.5;
         }
       }
     });
@@ -1097,15 +1247,21 @@ class FlyPiano3DScene {
     // 3D Internal Brain pulse
     this.pulseBrain3D('all', force);
 
-    this.burstParticles(keyMesh.position.x, keyMesh.position.y + 0.1, keyMesh.position.z);
+    // Visual footpad click shockwave ring directly on the key surface!
+    const footContactX = keyMesh.position.x + (strikeLeft ? -0.05 : 0.05);
+    const footContactY = keyMesh.position.y + (keyMesh.userData.isBlack ? 0.14 : 0.11);
+    const footContactZ = keyMesh.position.z - 0.12;
+    this.triggerClickRing(footContactX, footContactY, footContactZ, keyMesh.userData.isBlack);
+
+    this.burstParticles(footContactX, footContactY + 0.04, footContactZ);
   }
 
   burstParticles(x, y, z) {
     const pos = this.particleSystem.geometry.attributes.position.array;
     for (let i = 0; i < pos.length; i += 3) {
-      pos[i] = x + (Math.random() - 0.5) * 0.5;
-      pos[i + 1] = y + Math.random() * 0.4;
-      pos[i + 2] = z + (Math.random() - 0.5) * 0.5;
+      pos[i] = x + (Math.random() - 0.5) * 0.4;
+      pos[i + 1] = y + Math.random() * 0.35;
+      pos[i + 2] = z + (Math.random() - 0.5) * 0.4;
     }
     this.particleSystem.geometry.attributes.position.needsUpdate = true;
     this.particleSystem.material.opacity = 1.0;
@@ -1172,22 +1328,72 @@ class FlyPiano3DScene {
       // Natural banking tilt into flight turns
       this.fly.rotation.z = -THREE.MathUtils.clamp(dx * 0.16, -0.32, 0.32);
       this.fly.rotation.y = THREE.MathUtils.clamp(-dx * 0.22, -0.45, 0.45);
-      this.fly.rotation.x = -0.16 + Math.sin(time * 3) * 0.02; // Gentle forward posture towards keys
+
+      // Sympathetic body pitch bobbing down into piano key clicks
+      let maxStrikeTap = 0;
+      let maxStrikeForce = 0;
+      this.legs.forEach(leg => {
+        if (leg.userData.isForeleg && leg.userData.strikeTimer > 0) {
+          const t = Math.sin(THREE.MathUtils.clamp(leg.userData.strikeTimer, 0, 1) * Math.PI);
+          if (t > maxStrikeTap) {
+            maxStrikeTap = t;
+            maxStrikeForce = leg.userData.strikeForce || 0.85;
+          }
+        }
+      });
+      const strikeBob = maxStrikeTap * 0.08 * maxStrikeForce;
+      this.fly.rotation.x = -0.12 - strikeBob + Math.sin(time * 3) * 0.02; // Elevated forward posture towards keys
     }
 
-    // 4. Jointed Leg Strike Kinematics
+    // 4. Jointed Leg Strike Kinematics & Tripod Stepping Gait
+    const isMoving = this.fly && (Math.abs(this.flyTargetPos.x - this.fly.position.x) > 0.08);
+    const walkStep = Math.sin(time * 16);
+
     this.legs.forEach(leg => {
-      if (leg.userData.strikeTimer > 0) {
-        leg.userData.strikeTimer -= 0.07;
-        const tap = Math.sin(THREE.MathUtils.clamp(leg.userData.strikeTimer, 0, 1) * Math.PI);
-        // Articulate femur and tibia joints downward onto key
-        leg.userData.femurGroup.rotation.x = leg.userData.baseFemurRot[0] + tap * 0.45;
-        leg.userData.tibiaGroup.rotation.x = leg.userData.baseTibiaRot[0] - tap * 0.55;
+      const u = leg.userData;
+      if (u.isForeleg && u.strikeTimer > 0) {
+        u.strikeTimer -= 0.065;
+        const tap = Math.sin(THREE.MathUtils.clamp(u.strikeTimer, 0, 1) * Math.PI);
+        const power = u.strikeForce || 0.85;
+
+        // Downward click stroke: Femur pushes down, Tibia drives down and forward, Tarsus depresses the key!
+        u.femurGroup.rotation.x = u.baseFemurRot[0] - tap * 0.36 * power;
+        u.tibiaGroup.rotation.x = u.baseTibiaRot[0] + tap * 0.28 * power;
+        if (u.tarsusGroup) {
+          u.tarsusGroup.rotation.x = u.baseTarsusRot[0] - tap * 0.22 * power;
+        }
+      } else if (isMoving) {
+        // Alternating tripod gait: Tripod A (L1, R2, L3), Tripod B (R1, L2, R3)
+        const isTripodA = (u.name === 'L1' || u.name === 'R2' || u.name === 'L3');
+        const phase = isTripodA ? walkStep : -walkStep;
+        const lift = Math.max(0, phase) * 0.20;
+        const stride = phase * 0.16;
+        u.femurGroup.rotation.x = u.baseFemurRot[0] + stride - lift * 0.3;
+        u.tibiaGroup.rotation.x = u.baseTibiaRot[0] - stride * 0.5 + lift * 0.5;
       } else {
-        leg.userData.femurGroup.rotation.x = leg.userData.baseFemurRot[0];
-        leg.userData.tibiaGroup.rotation.x = leg.userData.baseTibiaRot[0];
+        // Idle organic micro-motion (tactile twitching/feeling the keyboard)
+        const idleTwitch = u.isForeleg ? Math.sin(time * 4 + (u.isLeft ? 0 : 1.5)) * 0.03 : 0;
+        u.femurGroup.rotation.x = u.baseFemurRot[0] + idleTwitch;
+        u.tibiaGroup.rotation.x = u.baseTibiaRot[0] - idleTwitch;
+        if (u.tarsusGroup) {
+          u.tarsusGroup.rotation.x = u.baseTarsusRot[0];
+        }
       }
     });
+
+    // Animate expanding click shockwave rings
+    if (this.clickRings) {
+      this.clickRings.forEach(ring => {
+        if (ring.userData.life > 0) {
+          ring.userData.life -= 0.055;
+          const progress = 1.0 - ring.userData.life;
+          const s = 0.4 + progress * 2.2;
+          ring.scale.set(s, s, s);
+          ring.material.opacity = Math.max(0, ring.userData.life * 0.85);
+          if (ring.userData.life <= 0) ring.visible = false;
+        }
+      });
+    }
 
     // 5. Internal 3D Brain Glow Smooth Decay
     if (this.ammcMeshL) {

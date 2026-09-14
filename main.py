@@ -303,25 +303,26 @@ class AdvancedChromaticLogicModule:
         """
         Provides authentic Multi-Head Tick sequences for training and evaluation.
         """
-        # 1. Multi-Octave Chromatic Training Scale (with dynamic velocities and rests)
+        # 1. Full 88-Key Multi-Octave Chromatic Training Scale (Octaves 0 to 7)
         train_ticks = []
         tick_counter = 1
-        for oct_i in range(1, 7):
+        for oct_i in range(0, 8):
             for semitone in range(12):
                 midi = 12 * oct_i + 12 + semitone
-                p, o, v, _ = self.midi_to_components(midi, 80 + (semitone * 3))
-                train_ticks.append({
-                    "tick": tick_counter,
-                    "time_sec": round((tick_counter - 1) * 0.25, 4),
-                    "dur_sec": 0.25,
-                    "pitch": p,
-                    "octave": o,
-                    "velocity": v,
-                    "midi": midi,
-                    "key": self.components_to_key(p, o),
-                    "is_rest": False
-                })
-                tick_counter += 1
+                if 21 <= midi <= 108:
+                    p, o, v, _ = self.midi_to_components(midi, 80 + (semitone * 3))
+                    train_ticks.append({
+                        "tick": tick_counter,
+                        "time_sec": round((tick_counter - 1) * 0.25, 4),
+                        "dur_sec": 0.25,
+                        "pitch": p,
+                        "octave": o,
+                        "velocity": v,
+                        "midi": midi,
+                        "key": self.components_to_key(p, o),
+                        "is_rest": False
+                    })
+                    tick_counter += 1
             # Rest tick between octaves
             train_ticks.append({
                 "tick": tick_counter,
@@ -625,11 +626,12 @@ def run_music_simulation(num_keys: int = 88, audio_path: str = None, midi_path: 
             p_logits, o_logits, strike_force = model(stimulus, leg_feedback)
 
             loss_p = criterion_pitch(p_logits, p_target)
-            loss_o = criterion_octave(o_logits, o_target)
             active_mask = (p_target != 12)
             if active_mask.any():
+                loss_o = criterion_octave(o_logits[active_mask], o_target[active_mask])
                 loss_f = criterion_velocity(strike_force[active_mask], f_target[active_mask])
             else:
+                loss_o = torch.tensor(0.0, device=DEVICE)
                 loss_f = torch.tensor(0.0, device=DEVICE)
             total_loss = loss_p + 0.6 * loss_o + 0.8 * loss_f
 

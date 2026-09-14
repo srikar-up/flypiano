@@ -16,10 +16,16 @@ Produces:
 """
 
 import os
+import sys
 import math
 import numpy as np
 import torch
 import pitch_features
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
 
 # Base frequency table for MIDI notes 21 (A0) to 108 (C8)
 MIDI_FREQS = {m: 440.0 * (2.0 ** ((m - 69) / 12.0)) for m in range(21, 109)}
@@ -127,6 +133,7 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
 
     # Map ticks to time
     window_samples = 4096
+    hop_samples = 2048
 
     for t_idx, ev in enumerate(midi_ticks):
         is_rest = ev.get("is_rest", False)
@@ -135,23 +142,39 @@ def extract_features_from_audio_stream(audio_path: str, midi_ticks: list[dict],
         force_label = ev.get("velocity", 0.8)
         midi_note = ev.get("midi", None)
 
-        # 1. Obtain audio chunk at exact tempo-aware timestamp
+        # 1. Obtain audio chunks across note duration using hop_samples multi-windowing
         time_sec = ev.get("time_sec", t_idx * 0.15)
         sample_idx = int(time_sec * sample_rate)
 
+        sub_windows = []
         if has_audio and audio is not None:
-            if sample_idx + window_samples <= len(audio):
-                chunk = audio[sample_idx:sample_idx + window_samples]
-            elif sample_idx < len(audio):
-                pad_needed = window_samples - (len(audio) - sample_idx)
-                chunk = np.pad(audio[sample_idx:], (0, pad_needed), mode='constant')
-            else:
-                chunk = synthesize_acoustic_note(midi_note, duration_sec=0.25, velocity=force_label, sample_rate=sample_rate)
-        else:
-            chunk = synthesize_acoustic_note(midi_note, duration_sec=0.25, velocity=force_label, sample_rate=sample_rate)
+            # Extract up to 2 overlapping windows spaced by hop_samples
+            for hop_i in range(2):
+                h_start = sample_idx + hop_i * hop_samples
+                if h_start + window_samples <= len(audio):
+                    sub_windows.append(audio[h_start:h_start + window_samples])
+                elif h_start < len(audio):
+                    pad = window_samples - (len(audio) - h_start)
+                    sub_windows.append(np.pad(audio[h_start:], (0, pad), mode='constant'))
+                    break
+                else:
+                    break
 
-        # 2. Extract 14-D features via YIN (with octave guard) + Chroma + RMS
-        clean_feat = pitch_features.extract_frame_features(chunk, sample_rate=sample_rate)
+        if not sub_windows:
+            chunk = synthesize_acoustic_note(midi_note, duration_sec=0.25, velocity=force_label, sample_rate=sample_rate)
+            sub_windows.append(chunk)
+
+        # 2. Extract 14-D features with hop_samples multi-window averaging
+        if len(sub_windows) == 1:
+            clean_feat = pitch_features.extract_frame_features(sub_windows[0], sample_rate=sample_rate)
+        else:
+            frames = [pitch_features.extract_frame_features(w, sample_rate=sample_rate) for w in sub_windows]
+            clean_feat = np.mean(frames, axis=0)
+            c_norm = np.linalg.norm(clean_feat[1:13])
+            if c_norm > 1e-6:
+                clean_feat[1:13] /= c_norm
+
+        chunk = sub_windows[0]
 
         # 3. Add clean feature
         all_inputs.append(clean_feat)
@@ -216,36 +239,68 @@ def build_all_datasets(workspace_dir: str = "."):
     music_dir = os.path.join(workspace_dir, "music")
     print("=" * 78)
     print("🔬 BUILDING CONTINUOUS AUDITORY CONNECTOME DATASET (14-D FEATURES + NOISE)")
-    print("   ⚡ Tempo-aware real-second timestamp synchronization (P0 Fix)")
+    print("   ⚡ Multi-Window Averaging (hop_samples=2048) & Expanded Repertoire")
     print("=" * 78)
 
-    # 1. Define Training Set (Aria Math + Chromatic Scales)
-    aria_mid_path = os.path.join(music_dir, "AriaMath.mid")
-    aria_mp3_path = os.path.join(music_dir, "AriaMath.mp3")
-
-    # Standard Aria Math ticks sequence
     from main import AdvancedChromaticLogicModule
     compiler = AdvancedChromaticLogicModule(num_keys=88, ticks_per_beat=4)
     presets = compiler.get_preset_ticks()
 
+    # 1. Define Training Set (Aria Math + GTA San Andreas + C418 Sweden + Full 88-Key Scale)
+    aria_mid_path = os.path.join(music_dir, "AriaMath.mid")
+    aria_mp3_path = os.path.join(music_dir, "AriaMath.mp3")
+
+    gta_mid_path = os.path.join(music_dir, "GTA San Andreas Theme Song by Justin.mid")
+    gta_mp3_path = os.path.join(music_dir, "GTA San Andreas Theme Song by Justin.mp3")
+
+    sweden_mid_path = os.path.join(music_dir, "C418 - Sweden (Minecraft Main Theme)a (midi by Carlo Prato) (www.cprato.com).mid")
+
     train_scale_ticks = presets["training_scale"]
-    # Load tempo-aware Aria Math if MIDI exists, falling back to preset
     aria_ticks = compiler.load_midi_to_ticks(aria_mid_path) or presets["aria_math"]
+    gta_ticks = compiler.load_midi_to_ticks(gta_mid_path)
+    sweden_ticks = compiler.load_midi_to_ticks(sweden_mid_path)
 
     print("📊 Generating Training Dataset...")
-    # Real audio Aria Math with real waveform pitch-shift & time-stretch augmentation
+    # Real audio Aria Math
     x_aria, p_aria, o_aria, f_aria = extract_features_from_audio_stream(
         aria_mp3_path, aria_ticks, augment_repeats=2, do_waveform_aug=True
     )
-    # Synthetic chromatic scale multi-octave
+    # Full 88-key chromatic scale (Octaves 0 to 7)
     x_scale, p_scale, o_scale, f_scale = extract_features_from_audio_stream(
         "nonexistent.mp3", train_scale_ticks, augment_repeats=1, do_waveform_aug=True
     )
 
-    x_train = np.vstack([x_aria, x_scale])
-    p_train = np.concatenate([p_aria, p_scale])
-    o_train = np.concatenate([o_aria, o_scale])
-    f_train = np.concatenate([f_aria, f_scale])
+    train_x_list = [x_aria, x_scale]
+    train_p_list = [p_aria, p_scale]
+    train_o_list = [o_aria, o_scale]
+    train_f_list = [f_aria, f_scale]
+
+    # Real audio GTA San Andreas Theme Song
+    if gta_ticks:
+        print(f"   🎮 Ingesting GTA San Andreas Theme Song ({len(gta_ticks)} ticks)...")
+        x_gta, p_gta, o_gta, f_gta = extract_features_from_audio_stream(
+            gta_mp3_path, gta_ticks, augment_repeats=1, do_waveform_aug=True
+        )
+        train_x_list.append(x_gta)
+        train_p_list.append(p_gta)
+        train_o_list.append(o_gta)
+        train_f_list.append(f_gta)
+
+    # C418 Sweden (acoustic physical synthesis)
+    if sweden_ticks:
+        print(f"   🎵 Ingesting C418 Sweden ({len(sweden_ticks)} ticks)...")
+        x_sweden, p_sweden, o_sweden, f_sweden = extract_features_from_audio_stream(
+            "nonexistent.mp3", sweden_ticks, augment_repeats=1, do_waveform_aug=True
+        )
+        train_x_list.append(x_sweden)
+        train_p_list.append(p_sweden)
+        train_o_list.append(o_sweden)
+        train_f_list.append(f_sweden)
+
+    x_train = np.vstack(train_x_list)
+    p_train = np.concatenate(train_p_list)
+    o_train = np.concatenate(train_o_list)
+    f_train = np.concatenate(train_f_list)
 
     print(f"✅ Training Dataset Ready: {len(x_train)} samples, 14-D feature vector.")
 
@@ -256,7 +311,6 @@ def build_all_datasets(workspace_dir: str = "."):
     print("\n🎻 Generating Held-Out Unseen Piece (J.S. Bach Prelude with Real Tempo Alignment)...")
     bach_ticks = compiler.load_midi_to_ticks(bach_mid_path)
     if not bach_ticks:
-        # Fallback to scale if Bach midi not parseable
         bach_ticks = aria_ticks[:32]
 
     # Clean, authentic held-out evaluation (NO waveform distortion / NO noise added)

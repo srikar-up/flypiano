@@ -36,11 +36,14 @@ def train_and_export_all():
     print("=" * 80)
     print(f"Device: {DEVICE}")
 
-    # 1. Build Datasets
-    build_dataset.build_all_datasets(".")
-
     train_file = "dataset_train.pt"
     val_file = "dataset_val.pt"
+
+    # 1. Build Datasets if missing
+    if not os.path.exists(train_file) or not os.path.exists(val_file):
+        build_dataset.build_all_datasets(".")
+    else:
+        print(f"📂 Loading existing continuous auditory datasets ({train_file} & {val_file})...")
 
     train_ds = torch.load(train_file, map_location=DEVICE)
     val_ds = torch.load(val_file, map_location=DEVICE)
@@ -75,8 +78,8 @@ def train_and_export_all():
     print("-" * 80)
 
     start_t = time.time()
-    num_epochs = 40
-    batch_size = 32
+    num_epochs = 35
+    batch_size = 64
 
     for epoch in range(1, num_epochs + 1):
         model.train()
@@ -102,13 +105,14 @@ def train_and_export_all():
             p_logits, o_logits, force = model(b_x, leg_feedback)
 
             loss_p = crit_pitch(p_logits, b_p)
-            loss_o = crit_octave(o_logits, b_o)
 
-            # P1 Fix: Mask velocity loss to active (non-rest) notes only to prevent collapse to zero
+            # Mask octave and velocity loss to active (non-rest) notes only
             active_mask = (b_p != 12)
             if active_mask.any():
+                loss_o = crit_octave(o_logits[active_mask], b_o[active_mask])
                 loss_f = crit_force(force[active_mask].view(-1), b_f[active_mask].view(-1))
             else:
+                loss_o = torch.tensor(0.0, device=DEVICE)
                 loss_f = torch.tensor(0.0, device=DEVICE)
 
             loss = loss_p + 0.6 * loss_o + 0.8 * loss_f
