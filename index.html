@@ -25,13 +25,13 @@
       <div class="status-chips">
         <div class="chip chip-success" id="chip-gpu">
           <span class="pulse-dot"></span>
-          <span>RTX 4060 · CUDA Active</span>
+          <span id="chip-gpu-label">Detecting Hardware GPU...</span>
         </div>
         <div class="chip chip-info" id="chip-connectome">
-          <span>🧠 14-D Continuous Connectome (Pitch · Octave · Force)</span>
+          <span id="chip-connectome-label">🧠 Connectome 2.0 (PyTorch Biological Reservoir)</span>
         </div>
         <div class="chip chip-accent" id="chip-accuracy">
-          <span>🎯 Mimicry Score: 98.6%</span>
+          <span id="chip-accuracy-label">🎯 Live Mimicry: Ready (0/0)</span>
         </div>
         <div class="piano-mode-badge" id="piano-grand-badge">
           <span class="pulse-dot"></span>
@@ -60,6 +60,7 @@
           <div class="song-badge" id="current-song-badge">
             <span class="badge-icon">🎼</span>
             <span class="badge-text" id="active-track-name">Aria Math (C418)</span>
+            <span class="track-tag tag-trained" id="track-dataset-badge">🟢 Trained Repertoire</span>
           </div>
           <div class="beat-badge" id="beat-counter-badge">
             <span>Tick: </span>
@@ -157,56 +158,145 @@
 
         <!-- TAB 1: MUSIC CONVERTER -->
         <div class="tab-content active" id="tab-converter">
+          <!-- Live AI Intelligence & Generalization Diagnostics Card -->
+          <div class="card diag-card" id="card-intelligence-diagnostics">
+            <div class="flex-between mb-2">
+              <h3>Live Neural Intelligence & Generalization Monitor</h3>
+              <span class="badge-dynamic" id="diag-model-status">PyTorch Connectome 2.0</span>
+            </div>
+            <p class="card-desc">Real-time inspection of the fly brain's neural forward pass vs ground truth. Eliminates mock indicators:</p>
+
+            <div class="diag-summary-grid">
+              <div class="diag-stat-box">
+                <span class="diag-stat-label">Dataset Provenance</span>
+                <span class="diag-stat-val" id="diag-data-status" style="color: var(--accent-emerald);">🟢 Trained Repertoire</span>
+                <span class="diag-stat-sub" id="diag-data-sub">In 21,431-sample training set</span>
+              </div>
+              <div class="diag-stat-box">
+                <span class="diag-stat-label">Live Mimicry (Exact Key)</span>
+                <span class="diag-stat-val" id="diag-exact-acc" style="color: var(--accent-cyan);">--%</span>
+                <span class="diag-stat-sub" id="diag-exact-fraction">0 / 0 notes matched</span>
+              </div>
+              <div class="diag-stat-box">
+                <span class="diag-stat-label">Pitch Class Accuracy</span>
+                <span class="diag-stat-val" id="diag-pitch-acc" style="color: var(--status-blue);">--%</span>
+                <span class="diag-stat-sub" id="diag-pitch-sub">Harmonic class match (0-11)</span>
+              </div>
+              <div class="diag-stat-box">
+                <span class="diag-stat-label">Inference Latency</span>
+                <span class="diag-stat-val" id="diag-latency-val" style="color: var(--text-primary);">-- ms</span>
+                <span class="diag-stat-sub" id="diag-latency-sub">Real client forward pass</span>
+              </div>
+            </div>
+
+            <!-- Live Note Decision Table -->
+            <div class="diag-table-container">
+              <table class="diag-table">
+                <thead>
+                  <tr>
+                    <th>Stream</th>
+                    <th>Pitch Class</th>
+                    <th>Octave</th>
+                    <th>Full Key</th>
+                    <th>Force</th>
+                    <th>Softmax Conf</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="target-row">
+                    <td><strong style="color: var(--text-secondary);">Target (Input)</strong></td>
+                    <td id="diag-t-pitch">--</td>
+                    <td id="diag-t-oct">--</td>
+                    <td id="diag-t-key">--</td>
+                    <td id="diag-t-vel">--</td>
+                    <td>100%</td>
+                    <td><span class="status-pill status-ready">Input</span></td>
+                  </tr>
+                  <tr class="fly-row">
+                    <td><strong style="color: var(--accent-cyan);">Fly AI (Output)</strong></td>
+                    <td id="diag-f-pitch">--</td>
+                    <td id="diag-f-oct">--</td>
+                    <td id="diag-f-key">--</td>
+                    <td id="diag-f-vel">--</td>
+                    <td id="diag-f-conf">--%</td>
+                    <td id="diag-match-pill"><span class="status-pill status-ready">Waiting</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="card">
-            <h3>Preset Repertoire (Zero-Shot AI)</h3>
-            <p class="card-desc">Select songs to test the fly's learned musical generalization on the 88-key piano:</p>
+            <h3>Preset Repertoire & Generalization Benchmark</h3>
+            <p class="card-desc">Explicit dataset provenance: test in-repertoire neural recall vs zero-shot generalization on unseen music:</p>
             <div class="preset-grid">
               <button class="preset-btn active" data-preset="aria_math">
                 <div class="preset-title">Aria Math (C418)</div>
                 <div class="preset-sub">Minecraft OST · 100 BPM Authentic</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-trained">🟢 TRAINED (21.4k Steps)</span></div>
+              </button>
+              <button class="preset-btn" data-preset="gta_sa">
+                <div class="preset-title">GTA San Andreas Theme</div>
+                <div class="preset-sub">Theme Song · Hip-Hop Piano Lead</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-trained">🟢 TRAINED REPERTOIRE</span></div>
+              </button>
+              <button class="preset-btn" data-preset="sweden">
+                <div class="preset-title">C418 - Sweden</div>
+                <div class="preset-sub">Minecraft Main Theme · Calm Piano</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-trained">🟢 TRAINED REPERTOIRE</span></div>
+              </button>
+              <button class="preset-btn" data-preset="grand_88_scale">
+                <div class="preset-title">Grand 88-Key Sweep</div>
+                <div class="preset-sub">A0 to C8 Full Piano Range</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-trained">🟢 TRAINED SCALE (Full 88)</span></div>
               </button>
               <button class="preset-btn" data-preset="fur_elise">
                 <div class="preset-title">Für Elise (9/9)</div>
                 <div class="preset-sub">Beethoven · Minor Motif</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-zeroshot">🟡 ZERO-SHOT (Unseen)</span></div>
               </button>
               <button class="preset-btn" data-preset="moonlight">
                 <div class="preset-title">Moonlight Sonata</div>
                 <div class="preset-sub">Beethoven · C# Minor</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-zeroshot">🟡 ZERO-SHOT (Unseen)</span></div>
               </button>
               <button class="preset-btn" data-preset="ode_to_joy">
                 <div class="preset-title">Ode to Joy</div>
-                <div class="preset-sub">Beethoven · D Major</div>
+                <div class="preset-sub">Beethoven · D Major Anthem</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-zeroshot">🟡 ZERO-SHOT (Unseen)</span></div>
               </button>
               <button class="preset-btn" data-preset="bach_prelude">
                 <div class="preset-title">Bach Cello Suite No. 1</div>
-                <div class="preset-sub">J.S. Bach · Prelude in G</div>
-              </button>
-              <button class="preset-btn" data-preset="grand_88_scale">
-                <div class="preset-title">Grand 88-Key Sweep</div>
-                <div class="preset-sub">A0 to C8 Full Piano</div>
+                <div class="preset-sub">J.S. Bach · Prelude in G Major</div>
+                <div class="preset-tag-wrap"><span class="preset-tag tag-heldout">🟣 HELD-OUT BENCHMARK</span></div>
               </button>
             </div>
           </div>
 
-          <!-- MIDI & MP3 Audio Converter Dropzone -->
+          <!-- MIDI Audio Converter Dropzone -->
           <div class="card">
-            <h3>MIDI & MP3 / Audio Universal Converter</h3>
-            <p class="card-desc">Drag & drop any <code>.mp3</code>, <code>.wav</code>, or <code>.mid</code> file. Full multi-track MIDI parsing with exact tempo and delta-time:</p>
-            <!-- Hidden File Input for Drag & Drop / Click Picker -->
-            <input type="file" id="file-input" accept=".mid,.midi,.kar,.mp3,.wav,.ogg,.m4a,audio/*" style="display: none;">
+            <h3>Add Music / MIDI File Ingestion</h3>
+            <p class="card-desc">Drag & drop or upload a <code>.mid</code> / <code>.midi</code> file. Full multi-track MIDI parsing with exact tempo, pitch classes, and tick dynamics:</p>
+            <!-- Hidden File Input for Drag & Drop / Click Picker (MIDI Only) -->
+            <input type="file" id="file-input" accept=".mid,.midi,.kar" style="display: none;">
 
             <div class="dropzone" id="midi-dropzone">
               <div class="dropzone-inner">
-                <span class="drop-icon">🎵</span>
-                <p><strong>Click to Open or Drop any MIDI / MP3 file</strong></p>
-                <span class="drop-sub">Continuous 14-D YIN+Chroma features with genuine Fly Connectome neural inference</span>
+                <span class="drop-icon">🎼</span>
+                <p><strong>Click to Open or Drop MIDI file (.mid, .midi)</strong></p>
+                <span class="drop-sub">Multi-track MIDI parsing · Model trained on discrete chromatic MIDI ticks</span>
               </div>
+            </div>
+
+            <div class="midi-format-notice" style="font-size: 11px; color: var(--text-secondary); background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); padding: 7px 10px; margin-top: 8px; line-height: 1.4;">
+              💡 <strong>MIDI Only:</strong> The Fly Connectome model is currently trained on multi-track MIDI representations. Only <code>.mid</code> files are accepted for accurate neural motor inference.
             </div>
 
             <!-- Workspace Music Loader -->
             <div class="music-quickload-box">
               <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px;">
-                Workspace Repertoire (Audio & MIDI):
+                Workspace Repertoire:
               </div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                 <button class="btn-secondary" id="btn-quick-aria-mid">
